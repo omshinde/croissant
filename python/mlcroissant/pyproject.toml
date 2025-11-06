@@ -3,7 +3,7 @@
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata
 name = "mlcroissant"
 description = "MLCommons datasets format."
-version = "1.0.21"
+version = "1.0.22"
 authors = [
   { name = "Costanza Conforti" },
   { name = "Joaquin Vanschoren" },
@@ -49,6 +49,7 @@ dev = [
   "mlcroissant[beam]",
   "mlcroissant[git]",
   "mlcroissant[image]",
+  "mlcroissant[dicom]",
   "mlcroissant[parquet]",
   "mypy",
   "pyflakes",
@@ -67,6 +68,7 @@ beam = [
 ]
 git = ["GitPython"]
 image = ["Pillow"]
+dicom = ["pydicom>=2.4.0"]
 parquet = ["pyarrow"]
 
 [project.scripts]

@@ -52,7 +52,10 @@ def _reading_method(
     """
     reading_methods: set[ReadingMethod] = set()
     for field in fields:
-        extract = field.source.extract
+        source = field.source
+        if source is None:
+            continue
+        extract = source.extract
         if extract.column:
             reading_methods.add(ReadingMethod.CONTENT)
         elif extract.file_property == FileProperty.lines:
@@ -84,7 +87,10 @@ def _get_sampling_rate(
     """
     sampling_rates: set[int] = set()
     for field in fields:
-        if sr := field.source.sampling_rate:
+        source = field.source
+        if source is None:
+            continue
+        if (sr := source.sampling_rate) is not None:
             sampling_rates.add(sr)
     if len(sampling_rates) > 1:
         raise ValueError(
@@ -99,7 +105,10 @@ def _get_sampling_rate(
 def _should_append_line_numbers(fields: tuple[Field, ...]) -> bool:
     """Checks whether at least one field requires listing the line numbers."""
     for field in fields:
-        if field.source.extract.file_property == FileProperty.lineNumbers:
+        source = field.source
+        if source is None:
+            continue
+        if source.extract.file_property == FileProperty.lineNumbers:
             return True
     return False
 
@@ -116,6 +125,20 @@ def _read_arff_file(filepath: str | io.StringIO | epath.Path) -> pd.DataFrame:
             " type (a numpy array). Please ensure the ARFF file is valid."
         )
     return pd.DataFrame(data)
+
+
+def _read_dicom_file(filepath: epath.Path) -> pd.DataFrame:
+    """Reads a file in DICOM format and returns it as a pandas DataFrame."""
+    try:
+        deps.pydicom
+    except ImportError as e:
+        raise ImportError(
+            "Missing dependency to read DICOM files. pydicom is not installed."
+            " Please, install `pip install mlcroissant[dicom]`."
+        ) from e
+    ds = deps.pydicom.dcmread(filepath)
+    pixel_array = ds.pixel_array
+    return pd.DataFrame({FileProperty.content: [pixel_array]})
 
 
 @dataclasses.dataclass(frozen=True, repr=False)
@@ -136,6 +159,8 @@ class Read(Operation):
         reading_method = _reading_method(self.node, self.fields)
         if EncodingFormat.ARFF in encoding_formats:
             return _read_arff_file(filepath)
+        if EncodingFormat.DICOM in encoding_formats:
+            return _read_dicom_file(filepath)
 
         with filepath.open("rb") as file:
             for encoding_format in encoding_formats:
@@ -179,10 +204,7 @@ class Read(Operation):
                         return pd.DataFrame({
                             FileProperty.content: [file.read()],
                         })
-                elif (
-                    encoding_format == EncodingFormat.MP3
-                    or encoding_format == EncodingFormat.JPG
-                ):
+                elif encoding_format == EncodingFormat.MP3:
                     sampling_rate = _get_sampling_rate(self.node, self.fields)
                     if sampling_rate:
                         out = deps.librosa.load(file, sr=sampling_rate)
@@ -191,6 +213,27 @@ class Read(Operation):
                     return pd.DataFrame({
                         FileProperty.content: [out],
                     })
+                elif encoding_format in {EncodingFormat.JPG, EncodingFormat.PNG}:
+                    try:
+                        img = deps.PIL_Image.open(file).convert("RGB")
+                    except ModuleNotFoundError:
+                        raise NotImplementedError(
+                            "Missing dependency to read JPG/PNG files. Pillow is not"
+                            " installed. Please, install `pip install pillow`"
+                        )
+                    return pd.DataFrame({FileProperty.content: [img]})
+                elif encoding_format == EncodingFormat.TIF:
+                    try:
+                        pil_img = deps.PIL_Image.fromarray(
+                            (deps.tifffile.imread(file) * 255).astype("uint8")
+                        )
+                    except ModuleNotFoundError:
+                        raise NotImplementedError(
+                            "Missing dependency to read TIF files. Pillow or tifffile"
+                            " is not installed. Please, install `pip install pillow"
+                            " tifffile`"
+                        )
+                    return pd.DataFrame({FileProperty.content: [pil_img]})
             raise ValueError(
                 f"None of the provided encoding formats: {encoding_format} for file"
                 f" {filepath} returned a valid pandas dataframe."

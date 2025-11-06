@@ -148,6 +148,7 @@ SCHEMA_ORG_PUBLISHER = namespace.SDO.publisher
 SCHEMA_ORG_SAME_AS = namespace.SDO.sameAs
 SCHEMA_ORG_SHA256 = namespace.SDO.sha256
 SCHEMA_ORG_URL = namespace.SDO.url
+SCHEMA_ORG_VALUE = namespace.SDO.value
 SCHEMA_ORG_VERSION = namespace.SDO.version
 
 # Schema.org URIs that do not exist yet in the standard.
@@ -233,14 +234,17 @@ class EncodingFormat:
     CSV = "text/csv"
     GIT = "git+https"
     JPG = "image/jpeg"
+    DICOM = "image/dicom"
     JSON = "application/json"
     JSON_LINES = "application/jsonlines"
     MP3 = "audio/mpeg"
     MP4 = "video/mp4"
     PARQUET = "application/x-parquet"
-    TEXT = "text/plain"
-    TSV = "text/tab-separated-values"
+    PNG = "image/png"
     TAR = "application/x-tar"
+    TEXT = "text/plain"
+    TIF = "image/tiff"
+    TSV = "text/tab-separated-values"
     ZIP = "application/zip"
 
 
