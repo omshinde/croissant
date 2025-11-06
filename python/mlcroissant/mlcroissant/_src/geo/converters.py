@@ -34,20 +34,8 @@ def _check_geo_dependencies() -> None:
 
 
 def sanitize_name(name: str) -> str:
-    """Sanitize name for use in Croissant format.
-    
-    Args:
-        name: Input string to sanitize
-        
-    Returns:
-        Sanitized string with special characters replaced by single dashes
-    """
-    # Replace special characters with dash
-    sanitized = re.sub(r"[^a-zA-Z0-9_\-]", "-", name)
-    # Collapse multiple dashes into one
-    sanitized = re.sub(r"-+", "-", sanitized)
-    # Strip leading/trailing dashes and spaces
-    return sanitized.strip("- ")
+    """Sanitize name for use in Croissant format."""
+    return re.sub(r"[^a-zA-Z0-9_\-]", "-", name)
 
 
 def ensure_semver(version: Optional[str]) -> str:
@@ -81,10 +69,6 @@ def stac_to_geocroissant(
         FileNotFoundError: If stac_input file path does not exist
     """
     _check_geo_dependencies()
-    
-    # Input validation
-    if not isinstance(stac_input, (str, Path, dict)):
-        raise TypeError(f"Expected string, Path, or dict input, got {type(stac_input)}")
     
     # Handle file input
     if isinstance(stac_input, (str, Path)):
