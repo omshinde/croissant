@@ -4,21 +4,19 @@ This module provides functions to convert various geospatial dataset formats
 (STAC, GeoJSON, etc.) to the GeoCroissant JSON-LD format.
 """
 
-from datetime import datetime
 import json
 import logging
-from pathlib import Path
 import re
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Optional, Union
-from urllib.parse import urlparse
 
 try:
-    import geopandas as gpd
-    import pyproj
     import pystac
-    import rasterio
-    import requests
+    import geopandas as gpd
     import shapely
+    import pyproj
+    import rasterio
     GEOSPATIAL_DEPENDENCIES_AVAILABLE = True
 except ImportError:
     GEOSPATIAL_DEPENDENCIES_AVAILABLE = False
@@ -71,7 +69,7 @@ def stac_to_geocroissant(
     """Convert STAC catalog/collection to GeoCroissant JSON-LD format.
     
     Args:
-        stac_input: STAC dictionary, path to STAC file, or URL to STAC endpoint
+        stac_input: STAC dictionary OR path to STAC file
         output_path: Optional output file path (if provided, saves to file)
         
     Returns:
@@ -79,7 +77,7 @@ def stac_to_geocroissant(
         
     Raises:
         ImportError: If geospatial dependencies are not installed
-        ValueError: If STAC data is invalid or URL fetch fails
+        ValueError: If STAC data is invalid
         FileNotFoundError: If stac_input file path does not exist
     """
     _check_geo_dependencies()
@@ -88,31 +86,15 @@ def stac_to_geocroissant(
     if not isinstance(stac_input, (str, Path, dict)):
         raise TypeError(f"Expected string, Path, or dict input, got {type(stac_input)}")
     
-    # Handle file input or URL
+    # Handle file input
     if isinstance(stac_input, (str, Path)):
-        stac_input_str = str(stac_input)
+        stac_path = Path(stac_input)
+        if not stac_path.exists():
+            raise FileNotFoundError(f"STAC file not found: {stac_path}")
         
-        # Check if input is a URL
-        if stac_input_str.startswith(('http://', 'https://')):
-            try:
-                logger.info(f"Fetching STAC data from URL: {stac_input_str}")
-                response = requests.get(stac_input_str, timeout=30)
-                response.raise_for_status()
-                stac_dict = response.json()
-                logger.info(f"Successfully fetched STAC data from URL")
-            except requests.RequestException as e:
-                raise ValueError(f"Failed to fetch STAC data from URL {stac_input_str}: {e}")
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON response from URL {stac_input_str}: {e}")
-        else:
-            # Handle local file path
-            stac_path = Path(stac_input)
-            if not stac_path.exists():
-                raise FileNotFoundError(f"STAC file not found: {stac_path}")
-            
-            logger.info(f"Loading STAC file: {stac_path}")
-            with open(stac_path, 'r') as f:
-                stac_dict = json.load(f)
+        logger.info(f"Loading STAC file: {stac_path}")
+        with open(stac_path, 'r') as f:
+            stac_dict = json.load(f)
     else:
         stac_dict = stac_input
 

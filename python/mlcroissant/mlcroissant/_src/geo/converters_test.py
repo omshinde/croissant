@@ -12,15 +12,17 @@ Test Categories:
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Dict, Any
 
 import pytest
 
-from mlcroissant._src.geo.stac_converters import _check_geo_dependencies
-from mlcroissant._src.geo.stac_converters import ensure_semver
-from mlcroissant._src.geo.stac_converters import GEOSPATIAL_DEPENDENCIES_AVAILABLE
-from mlcroissant._src.geo.stac_converters import sanitize_name
-from mlcroissant._src.geo.stac_converters import stac_to_geocroissant
+from mlcroissant._src.geo.converters import (
+    stac_to_geocroissant,
+    sanitize_name,
+    ensure_semver,
+    _check_geo_dependencies,
+    GEOSPATIAL_DEPENDENCIES_AVAILABLE,
+)
 
 # Fixtures
 
@@ -354,55 +356,3 @@ def test_stac_to_geocroissant_invalid_input():
     with pytest.raises(TypeError) as exc_info:
         stac_to_geocroissant(123)  # Invalid input type
     assert "Expected string, Path, or dict input" in str(exc_info.value)
-
-
-def test_stac_to_geocroissant_url():
-    """Test conversion with STAC URL input.
-    
-    Verifies:
-        - URL detection and fetching
-        - HTTP request handling
-        - JSON parsing from URL response
-        - Same conversion quality as local files
-    """
-    if not GEOSPATIAL_DEPENDENCIES_AVAILABLE:
-        pytest.skip("Geospatial dependencies not installed")
-    
-    # Test with the MAAP project STAC endpoint
-    test_url = "https://stac.maap-project.org/collections/icesat2-boreal-v2.1-agb"
-    
-    try:
-        result = stac_to_geocroissant(test_url)
-        
-        # Verify basic structure
-        assert result["@type"] == "Dataset"
-        assert result["@id"] == "icesat2-boreal-v2.1-agb"
-        assert result["name"] == "Circumpolar-boreal-forest-structure-from-ICESat-2-HLS-2020-v2-1-30m-aboveground-woody-biomass-density"
-        assert result["version"] == "2.1.0"
-        assert result["license"] == "CC-BY"
-        
-        # Verify context and conformance
-        assert "@context" in result
-        assert result["@context"]["geocr"] == "http://mlcommons.org/geocroissant/"
-        assert result["conformsTo"] == "http://mlcommons.org/croissant/1.0"
-        
-    except Exception as e:
-        # Skip test if network issues or URL is not accessible
-        pytest.skip(f"URL test skipped due to network/accessibility issues: {e}")
-
-
-def test_stac_to_geocroissant_invalid_url():
-    """Test handling of invalid URLs.
-    
-    Verifies proper error handling for:
-        - Invalid URLs
-        - Network failures
-        - Non-JSON responses
-    """
-    if not GEOSPATIAL_DEPENDENCIES_AVAILABLE:
-        pytest.skip("Geospatial dependencies not installed")
-    
-    # Test with invalid URL
-    with pytest.raises(ValueError) as exc_info:
-        stac_to_geocroissant("https://invalid-url-that-does-not-exist.com/stac.json")
-    assert "Failed to fetch STAC data from URL" in str(exc_info.value)
