@@ -25,7 +25,6 @@ from mlcroissant._src.structure_graph.nodes.source import Extract
 from mlcroissant._src.structure_graph.nodes.source import FileProperty
 from mlcroissant._src.structure_graph.nodes.source import Source
 from mlcroissant._src.structure_graph.nodes.source import Transform
-from mlcroissant._src import geo
 
 __all__ = [
     "constants",
