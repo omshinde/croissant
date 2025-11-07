@@ -1,9 +1,18 @@
+"""GeoCroissant to STAC Converter Module.
+
+This module provides functionality for converting GeoCroissant metadata to STAC
+(SpatioTemporal Asset Catalog) format. It handles the transformation of GeoCroissant's
+structured data into STAC Items and Assets, incorporating relevant extensions like
+Table and Scientific metadata.
+"""
+
 import json
 from datetime import datetime
 from typing import Dict, List
-from pystac import Item, Asset, MediaType
-from pystac.extensions.table import TableExtension
+
+from pystac import Asset, Item, MediaType
 from pystac.extensions.scientific import ScientificExtension
+from pystac.extensions.table import TableExtension
 
 # License mapping from URL
 KNOWN_LICENSES = {
@@ -213,53 +222,57 @@ def croissant_to_stac_item(croissant_json, output_path=None):
             "keywords": keywords,
             "providers": providers,
             "msft:region": "US",
-            "msft:short_description": "HLS burn scars imagery and masks for US (2018-2021)",
+            "msft:short_description": (
+                "HLS burn scars imagery and masks for US (2018-2021)"
+            ),
             "gsd": 30,  # Ground sample distance in meters (Landsat/Sentinel-2)
             "platform": "Landsat-8, Sentinel-2",
             "instruments": ["OLI", "TIRS", "MSI"],
             "constellation": "HLS",
             "dataset_size": "804 scenes",
             "image_size": "512x512 pixels",
-            "hls:bands": bands
-            if bands
-            else [
-                {
-                    "name": "Blue",
-                    "common_name": "blue",
-                    "hls_band": "B02",
-                    "wavelength": "490nm",
-                },
-                {
-                    "name": "Green",
-                    "common_name": "green",
-                    "hls_band": "B03",
-                    "wavelength": "560nm",
-                },
-                {
-                    "name": "Red",
-                    "common_name": "red",
-                    "hls_band": "B04",
-                    "wavelength": "665nm",
-                },
-                {
-                    "name": "NIR",
-                    "common_name": "nir",
-                    "hls_band": "B8A",
-                    "wavelength": "865nm",
-                },
-                {
-                    "name": "SW1",
-                    "common_name": "swir1",
-                    "hls_band": "B11",
-                    "wavelength": "1610nm",
-                },
-                {
-                    "name": "SW2",
-                    "common_name": "swir2",
-                    "hls_band": "B12",
-                    "wavelength": "2190nm",
-                },
-            ],
+            "hls:bands": (
+                bands
+                if bands
+                else [
+                    {
+                        "name": "Blue",
+                        "common_name": "blue",
+                        "hls_band": "B02",
+                        "wavelength": "490nm",
+                    },
+                    {
+                        "name": "Green",
+                        "common_name": "green",
+                        "hls_band": "B03",
+                        "wavelength": "560nm",
+                    },
+                    {
+                        "name": "Red",
+                        "common_name": "red",
+                        "hls_band": "B04",
+                        "wavelength": "665nm",
+                    },
+                    {
+                        "name": "NIR",
+                        "common_name": "nir",
+                        "hls_band": "B8A",
+                        "wavelength": "865nm",
+                    },
+                    {
+                        "name": "SW1",
+                        "common_name": "swir1",
+                        "hls_band": "B11",
+                        "wavelength": "1610nm",
+                    },
+                    {
+                        "name": "SW2",
+                        "common_name": "swir2",
+                        "hls_band": "B12",
+                        "wavelength": "2190nm",
+                    },
+                ]
+            ),
             "format": "TIFF",
         },
     )

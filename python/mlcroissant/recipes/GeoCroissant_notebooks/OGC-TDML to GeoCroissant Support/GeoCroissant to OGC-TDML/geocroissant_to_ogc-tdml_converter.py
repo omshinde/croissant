@@ -1,24 +1,37 @@
+"""GeoCroissant to OGC Training Data Markup Language (TDML) converter.
+
+This module provides functionality to convert GeoCroissant format metadata to OGC-TDML format,
+using the pytdml library for TDML schema validation and output generation.
+"""
+
 import argparse
 import json
 from datetime import datetime
 
+from pytdml.io import write_to_json
+
 # Import pytdml library with proper structure
 from pytdml.type import (
-    EOTrainingDataset,
     AI_EOTask,
     AI_EOTrainingData,
-    AI_SceneLabel,
     AI_PixelLabel,
+    AI_SceneLabel,
+    EOTrainingDataset,
     MD_Band,
     MD_Identifier,
     NamedValue,
 )
-from pytdml.io import write_to_json
 
 
 def convert_geocroissant_to_tdml(geocroissant_path, tdml_output_path):
-    """
-    Convert GeoCroissant JSON to OGC-TDML JSON format using pytdml library.
+    """Convert GeoCroissant JSON to OGC-TDML JSON format using pytdml library.
+
+    Args:
+        geocroissant_path: Path to the input GeoCroissant JSON file.
+        tdml_output_path: Path where the converted TDML JSON will be saved.
+
+    Returns:
+        None. The converted file is written to tdml_output_path.
     """
     try:
         # Load the GeoCroissant JSON directly

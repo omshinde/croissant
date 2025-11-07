@@ -1,16 +1,23 @@
+"""HLS (Harmonized Landsat Sentinel-2) Dataset Loader Module.
+
+This module provides utilities for loading and processing HLS burn scars datasets.
+It handles the loading of local HLS data files and organizes them into a structured
+dataset format compatible with the GeoCroissant framework.
+"""
+
 import os
 from glob import glob
+
 from datasets import Dataset, DatasetDict
 
 
 def load_hls_burn_scars_dataset():
-    """Load HLS Burn Scars dataset from local files"""
-
+    """Load HLS Burn Scars dataset from local files."""
     # Dataset path
     dataset_path = "/teamspace/studios/this_studio/ZOO-AI-DATASET-MAAS/Introduction to Geocroissant/hls_burn_scars"
 
     def get_file_pairs(split):
-        """Get image and annotation file pairs for a split"""
+        """Get image and annotation file pairs for a split."""
         split_path = os.path.join(dataset_path, split)
         image_files = glob(os.path.join(split_path, "*_merged.ti"))
 

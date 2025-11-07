@@ -1,12 +1,31 @@
+"""GeoCroissant to GeoDCAT Conversion Module.
+
+This module provides functionality for converting GeoCroissant metadata to GeoDCAT
+(Geographic Data Catalog Vocabulary) format. It handles the transformation of
+GeoCroissant's JSON metadata into RDF-based GeoDCAT representations, enabling
+interoperability with geographic data catalog systems.
+"""
+
 import json
-from rdflib import Graph, Namespace, URIRef, Literal
-from rdflib.namespace import DCTERMS, DCAT, FOAF, XSD, RDF, SKOS
 from urllib.parse import quote
+
+from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.namespace import DCAT, DCTERMS, FOAF, RDF, SKOS, XSD
 
 
 def croissant_to_geodcat_jsonld(
     croissant_json, output_file="geodcat.jsonld", gitattributes_file=".gitattributes"
 ):
+    """Convert GeoCroissant JSON to GeoDCAT JSON-LD format.
+
+    Args:
+        croissant_json: GeoCroissant metadata dictionary.
+        output_file: Path to output GeoDCAT JSON-LD file.
+        gitattributes_file: Path to .gitattributes file for LFS URLs.
+
+    Returns:
+        Graph: RDF graph containing the GeoDCAT representation.
+    """
     g = Graph()
 
     # Load real file URLs from .gitattributes

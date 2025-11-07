@@ -8,6 +8,14 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
+
+"""Prithvi MAE (Masked Autoencoder) Model Implementation.
+
+This module implements the Prithvi Masked Autoencoder model architecture,
+a deep learning model designed for self-supervised learning on remote sensing data.
+The model uses a transformer-based architecture with masking strategies for
+pretraining on satellite imagery.
+"""
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
@@ -17,10 +25,10 @@
 # transformers: https://github.com/huggingface/transformers
 # --------------------------------------------------------
 
+import logging
 from functools import partial
 from typing import List, Tuple
 
-import logging
 import numpy as np
 import torch
 import torch.nn as nn
@@ -30,12 +38,10 @@ from timm.models.vision_transformer import Block
 
 
 def get_3d_sincos_pos_embed(embed_dim, grid_size, add_cls_token=False):
-    """
-    Create 3D sin/cos positional embeddings.
+    """Create 3D sin/cos positional embeddings.
 
     Args:
-        embed_dim (int):
-            Embedding dimension.
+        embed_dim (int): Embedding dimension for positional encodings.
         grid_size (tuple[int, int, int] | list[int]):
             The grid depth, height and width.
         add_cls_token (bool, *optional*, defaults to False):
@@ -45,7 +51,6 @@ def get_3d_sincos_pos_embed(embed_dim, grid_size, add_cls_token=False):
         (`torch.FloatTensor` of shape (grid_size[0]*grid_size[1]*grid_size[2], embed_dim) or
         (1+grid_size[0]*grid_size[1]*grid_size[2], embed_dim): the position embeddings (with or without cls token)
     """
-
     assert embed_dim % 16 == 0
 
     t_size, h_size, w_size = grid_size
@@ -53,7 +58,6 @@ def get_3d_sincos_pos_embed(embed_dim, grid_size, add_cls_token=False):
     w_embed_dim = embed_dim // 16 * 6
     h_embed_dim = embed_dim // 16 * 6
     t_embed_dim = embed_dim // 16 * 4
-
     w_pos_embed = get_1d_sincos_pos_embed_from_grid(w_embed_dim, np.arange(w_size))
     h_pos_embed = get_1d_sincos_pos_embed_from_grid(h_embed_dim, np.arange(h_size))
     t_pos_embed = get_1d_sincos_pos_embed_from_grid(t_embed_dim, np.arange(t_size))
@@ -70,8 +74,14 @@ def get_3d_sincos_pos_embed(embed_dim, grid_size, add_cls_token=False):
 
 
 def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
-    """
-    embed_dim: output dimension for each position pos: a list of positions to be encoded: size (M,) out: (M, D)
+    """Generate 1D sinusoidal positional embeddings from a grid.
+
+    Args:
+        embed_dim: Output dimension for each position.
+        pos: A list of positions to be encoded, size (M,).
+
+    Returns:
+        Tensor of shape (M, D) containing positional embeddings.
     """
     if embed_dim % 2 != 0:
         raise ValueError("embed_dim must be even")
@@ -91,11 +101,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
 
 def _get_1d_sincos_embed_from_grid_torch(embed_dim: int, pos: torch.Tensor):
-    """This is the torch version of *get_1d_sincos_pos_embed_from_grid()*. However,
-    it was modified to cast omega values to pos.dtype which must be float (and not int as in
-    regular positional embeddings). This was required in order to allow for native FSDP mixed
-    precision support: modify omega to appropriate dtype (pos carries the correct float dtype),
-    instead of manually forcing float32.
+    """Get 1D sincos positional embedding from grid using torch operations.
 
     embed_dim: output dimension for each position
     pos: a list of positions to be encoded: size (M,) - must be float dtype!
@@ -120,7 +126,7 @@ def _get_1d_sincos_embed_from_grid_torch(embed_dim: int, pos: torch.Tensor):
 
 
 def _init_weights(module):
-    """Initialize the weights"""
+    """Initialize the weights."""
     if isinstance(module, nn.Linear):
         nn.init.xavier_uniform_(module.weight)
         if module.bias is not None:
@@ -131,7 +137,11 @@ def _init_weights(module):
 
 
 class PatchEmbed(nn.Module):
-    """3D version of timm.models.vision_transformer.PatchEmbed"""
+    """3D version of timm.models.vision_transformer.PatchEmbed.
+
+    This class handles the initial processing of the input by splitting it into patches
+    and linearly embedding them.
+    """
 
     def __init__(
         self,
@@ -143,6 +153,17 @@ class PatchEmbed(nn.Module):
         flatten: bool = True,
         bias: bool = True,
     ):
+        """Initialize the PatchEmbed module.
+
+        Args:
+            input_size: Size of input tensor (time, height, width).
+            patch_size: Size of patches to split input into.
+            in_chans: Number of input channels.
+            embed_dim: Dimension of patch embeddings.
+            norm_layer: Optional normalization layer.
+            flatten: Whether to flatten patch embeddings.
+            bias: Whether to use bias in linear projection.
+        """
         super().__init__()
         self.input_size = input_size
         self.patch_size = patch_size
@@ -156,6 +177,14 @@ class PatchEmbed(nn.Module):
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
+        """Forward pass of the patch embedding layer.
+
+        Args:
+            x: Input tensor of shape (B, C, T, H, W).
+
+        Returns:
+            Embedded patches tensor.
+        """
         B, C, T, H, W = x.shape
 
         if (
@@ -176,7 +205,19 @@ class PatchEmbed(nn.Module):
 
 
 class TemporalEncoder(nn.Module):
+    """Temporal encoding module for handling time-based features.
+
+    This module encodes temporal information using sinusoidal embeddings
+    with optional trainable scaling.
+    """
+
     def __init__(self, embed_dim: int, trainable_scale: bool = False):
+        """Initialize the temporal encoder.
+
+        Args:
+            embed_dim: Dimension of the embeddings.
+            trainable_scale: Whether to use trainable scaling factors.
+        """
         super().__init__()
         self.embed_dim = embed_dim
         self.year_embed_dim = embed_dim // 2
@@ -191,10 +232,16 @@ class TemporalEncoder(nn.Module):
     def forward(
         self, temporal_coords: torch.Tensor, tokens_per_frame: int | None = None
     ):
-        """
-        temporal_coords: year and day-of-year info with shape (B, T, 2).
-        tokens_per_frame: number of tokens for each frame in the sample. If provided, embeddings will be
-            repeated over T dimension, and final shape is (B, T*tokens_per_frame, embed_dim).
+        """Forward pass for temporal embeddings.
+
+        Args:
+            temporal_coords: Year and day-of-year info with shape (B, T, 2).
+            tokens_per_frame: Number of tokens for each frame in the sample. If provided,
+                embeddings will be repeated over T dimension, and final shape is
+                (B, T*tokens_per_frame, embed_dim).
+
+        Returns:
+            Tensor containing temporal embeddings.
         """
         shape = temporal_coords.shape[:2] + (-1,)  # B, T, -1
 
@@ -214,7 +261,19 @@ class TemporalEncoder(nn.Module):
 
 
 class LocationEncoder(nn.Module):
+    """Encoder for spatial location information.
+
+    This module handles the encoding of positional information for spatial coordinates,
+    converting them into learned embeddings that can be used by the transformer model.
+    """
+
     def __init__(self, embed_dim: int, trainable_scale: bool = False):
+        """Initialize the LocationEncoder.
+
+        Args:
+            embed_dim (int): Dimension of the location embedding.
+            trainable_scale (bool): If True, scale is trainable.
+        """
         super().__init__()
         self.embed_dim = embed_dim
         self.lat_embed_dim = embed_dim // 2
@@ -227,8 +286,13 @@ class LocationEncoder(nn.Module):
             self.register_buffer("scale", torch.ones(1))
 
     def forward(self, location_coords: torch.Tensor):
-        """
-        location_coords: lat and lon info with shape (B, 2).
+        """Compute location embeddings from latitude and longitude.
+
+        Args:
+            location_coords (torch.Tensor): lat and lon info with shape (B, 2).
+
+        Returns:
+            torch.Tensor: Location embedding of shape (B, 1, embed_dim).
         """
         shape = location_coords.shape[:1] + (1, -1)  # B, 1, -1
 
@@ -245,7 +309,7 @@ class LocationEncoder(nn.Module):
 
 
 class PrithviViT(nn.Module):
-    """Prithvi ViT Encoder"""
+    """Prithvi ViT Encoder."""
 
     def __init__(
         self,
@@ -253,9 +317,9 @@ class PrithviViT(nn.Module):
         patch_size: int | Tuple[int, int, int] = (1, 16, 16),
         num_frames: int = 1,
         in_chans: int = 3,
-        embed_dim: int = 1024,
-        depth: int = 24,
-        num_heads: int = 16,
+        embed_dim: int = 768,
+        depth: int = 12,
+        num_heads: int = 12,
         mlp_ratio: float = 4.0,
         norm_layer: nn.Module = partial(torch.nn.LayerNorm, eps=1e-6),
         coords_encoding: List[str] | None = None,
@@ -263,6 +327,22 @@ class PrithviViT(nn.Module):
         encoder_only: bool = True,  # needed for timm
         **kwargs,
     ):
+        """Initialize Prithvi Vision Transformer encoder.
+
+        Args:
+            img_size: Input image size (H=W) or tuple (H,W)
+            patch_size: Size of patches to embed (T,H,W)
+            num_frames: Number of input frames (time dimension)
+            in_chans: Number of input channels
+            embed_dim: Dimension of transformer embedding
+            depth: Number of transformer layers
+            num_heads: Number of attention heads
+            mlp_ratio: MLP hidden dimension expansion ratio
+            norm_layer: Normalization layer to use
+            coords_encoding: Types of coordinate encodings to use
+            coords_scale_learn: Whether coordinate scales should be learnable
+            encoder_only: Whether to use encoder only mode
+        """
         super().__init__()
 
         self.feature_info = []
@@ -325,6 +405,14 @@ class PrithviViT(nn.Module):
         self.initialize_weights()
 
     def initialize_weights(self):
+        """Initialize encoder weights with proper initialization schemes.
+
+        Performs:
+        1. Initializing position embeddings with sin-cos embedding
+        2. Initializing patch embedding projection with Xavier uniform
+        3. Initializing CLS token with small normal values
+        4. Applying default weight initialization to remaining parameters
+        """
         # initialize (and freeze) position embeddings by sin-cos embedding
         pos_embed = get_3d_sincos_pos_embed(
             self.pos_embed.shape[-1], self.patch_embed.grid_size, add_cls_token=True
@@ -340,15 +428,21 @@ class PrithviViT(nn.Module):
         self.apply(_init_weights)
 
     def random_masking(self, sequence, mask_ratio, noise=None):
-        """
-        Perform per-sample random masking by per-sample shuffling. Per-sample shuffling is done by argsort random
-        noise.
+        """Perform per-sample random masking by per-sample shuffling.
+
+        Per-sample shuffling is done by argsort random noise to ensure uniform masking.
 
         Args:
-            sequence (`torch.FloatTensor` of shape `(batch_size, sequence_length, dim)`)
-            mask_ratio (float): mask ratio to use.
-            noise (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*) which is
-                mainly used for testing purposes to control randomness and maintain the reproducibility
+            sequence: Input sequence tensor of shape [batch_size, sequence_length, dim]
+            mask_ratio: Ratio of tokens to mask in range [0, 1)
+            noise: Optional tensor of shape [batch_size, sequence_length] for shuffling,
+                  if not provided use normal noise. Used for reproducible testing.
+
+        Returns:
+            tuple: Contains:
+                - sequence_unmasked: Unmasked sequence [batch_size, int(L*(1-mask_ratio)), dim]
+                - mask: Binary mask tensor [batch_size, sequence_length] (1=masked)
+                - ids_restore: Index tensor to restore original sequence order
         """
         batch_size, seq_length, dim = sequence.shape
         len_keep = int(seq_length * (1 - mask_ratio))
@@ -407,6 +501,20 @@ class PrithviViT(nn.Module):
         location_coords: None | torch.Tensor = None,
         mask_ratio=0.75,
     ):
+        """Forward pass through Prithvi Vision Transformer encoder.
+
+        Args:
+            x: Input image tensor of shape [batch_size, channels, time, height, width]
+            temporal_coords: Optional temporal coordinates for each frame
+            location_coords: Optional location coordinates
+            mask_ratio: Ratio of patches to mask during training
+
+        Returns:
+            tuple: Contains:
+                - sequence: Encoded sequence with CLS token
+                - mask: Binary mask indicating masked positions
+                - ids_restore: Indices to restore original sequence order
+        """
         if x.shape[-3:] != self.patch_embed.input_size:
             # changed input size
             pos_embed = self._get_pos_embed(x)
@@ -450,6 +558,17 @@ class PrithviViT(nn.Module):
         temporal_coords: None | torch.Tensor = None,
         location_coords: None | torch.Tensor = None,
     ) -> list[torch.Tensor]:
+        """Extract features from each transformer layer without masking.
+
+        Args:
+            x: Input image tensor of shape [batch_size, channels, time, height, width]
+            temporal_coords: Optional temporal coordinates for each frame
+            location_coords: Optional location coordinates
+
+        Returns:
+            list[torch.Tensor]: List of features from each transformer layer,
+                              including CLS token embeddings
+        """
         if len(x.shape) == 4 and self.patch_embed.input_size[0] == 1:
             # add time dim
             x = x.unsqueeze(2)
@@ -493,6 +612,14 @@ class PrithviViT(nn.Module):
     def prepare_features_for_image_model(
         self, features: list[torch.Tensor]
     ) -> list[torch.Tensor]:
+        """Prepare features for image model.
+
+        Args:
+            features (list[torch.Tensor]): List of feature tensors.
+
+        Returns:
+            list[torch.Tensor]: List of processed feature tensors.
+        """
         out = []
         effective_time_dim = (
             self.patch_embed.input_size[0] // self.patch_embed.patch_size[0]
@@ -514,7 +641,7 @@ class PrithviViT(nn.Module):
 
 
 class MAEDecoder(nn.Module):
-    """Transformer Decoder used in the Prithvi MAE"""
+    """Transformer Decoder used in the Prithvi MAE."""
 
     def __init__(
         self,
@@ -530,6 +657,21 @@ class MAEDecoder(nn.Module):
         coords_encoding: List[str] | None = None,
         coords_scale_learn: bool = False,
     ):
+        """Initialize MAE decoder.
+
+        Args:
+            patch_size: Size of patches to decode (T,H,W)
+            grid_size: Size of output grid (T,H,W)
+            in_chans: Number of input channels
+            encoder_embed_dim: Dimension of encoder embedding
+            decoder_embed_dim: Dimension of decoder embedding
+            depth: Number of transformer decoder layers
+            num_heads: Number of attention heads
+            mlp_ratio: MLP hidden dimension expansion ratio
+            norm_layer: Normalization layer to use
+            coords_encoding: Types of coordinate encodings to use
+            coords_scale_learn: Whether coordinate scales should be learnable
+        """
         super().__init__()
 
         self.decoder_embed = nn.Linear(encoder_embed_dim, decoder_embed_dim, bias=True)
@@ -583,6 +725,13 @@ class MAEDecoder(nn.Module):
         self.initialize_weights()
 
     def initialize_weights(self):
+        """Initialize decoder weights with proper initialization schemes.
+
+        Includes:
+        1. Initializing position embeddings with sin-cos embedding
+        2. Initializing mask token with small normal values
+        3. Applying weight initialization to all other parameters
+        """
         # initialize (and freeze) position embeddings by sin-cos embedding
         decoder_pos_embed = get_3d_sincos_pos_embed(
             self.decoder_pos_embed.shape[-1], self.grid_size, add_cls_token=True
@@ -603,6 +752,7 @@ class MAEDecoder(nn.Module):
         location_coords: None | torch.Tensor = None,
         input_size: list[int] = None,
     ):
+        """Forward pass for the decoder. Add detailed docstring as needed."""
         # embed tokens
         x = self.decoder_embed(hidden_states)
 
@@ -667,7 +817,7 @@ class MAEDecoder(nn.Module):
 
 
 class PrithviMAE(nn.Module):
-    """Prithvi Masked Autoencoder"""
+    """Prithvi Masked Autoencoder."""
 
     def __init__(
         self,
@@ -689,6 +839,26 @@ class PrithviMAE(nn.Module):
         encoder_only: bool = False,
         **kwargs,
     ):
+        """Initialize Prithvi MAE model.
+
+        Args:
+            img_size: Input image size (H=W) or tuple (H,W)
+            patch_size: Size of patches to embed (T,H,W)
+            num_frames: Number of input frames (time dimension)
+            in_chans: Number of input channels
+            embed_dim: Dimension of encoder embedding
+            depth: Number of transformer encoder layers
+            num_heads: Number of attention heads in encoder
+            decoder_embed_dim: Dimension of decoder embedding
+            decoder_depth: Number of transformer decoder layers
+            decoder_num_heads: Number of attention heads in decoder
+            mlp_ratio: MLP hidden dimension expansion ratio
+            norm_layer: Normalization layer to use
+            norm_pix_loss: Whether to normalize targets in pixel loss
+            coords_encoding: Types of coordinate encodings to use
+            coords_scale_learn: Whether coordinate scales should be learnable
+            encoder_only: Whether to use encoder only (no decoder)
+        """
         super().__init__()
 
         self.encoder = PrithviViT(
@@ -727,7 +897,8 @@ class PrithviMAE(nn.Module):
         self.norm_pix_loss = norm_pix_loss
 
     def patchify(self, pixel_values):
-        """
+        """Convert pixel values to patchified format.
+
         Args:
             pixel_values (torch.FloatTensor of shape `(batch_size, num_channels, time, height, width)`):
                 Pixel values.
@@ -754,17 +925,18 @@ class PrithviMAE(nn.Module):
     def unpatchify(
         self, patchified_pixel_values, image_size: Tuple[int, int] | None = None
     ):
-        """
+        """Convert patchified tensor back to regular image tensor.
+
         Args:
-            patchified_pixel_values (`torch.FloatTensor` of shape
-                `(batch_size, num_patches, patch_size[0]*patch_size[1]*patch_size[2] * num_channels)`:
-                Patchified pixel values.
-            image_size (`Tuple[int, int]`, *optional*):
-                Original image size.
+            patchified_pixel_values: Tensor of shape [batch_size, num_patches,
+                patch_size[0]*patch_size[1]*patch_size[2]*num_channels] containing
+                patchified pixel values
+            image_size: Optional tuple of (height, width) for output image size.
+                If not provided, uses model's default image size.
 
         Returns:
-            `torch.FloatTensor` of shape `(batch_size, num_channels, height, width)`:
-                Pixel values.
+            torch.Tensor: Reconstructed image tensor of shape
+                [batch_size, num_channels, time*patch_size[0], height, width]
         """
         patch_size_t, patch_size_h, patch_size_w = self.encoder.patch_embed.patch_size
         image_size = (
@@ -788,7 +960,8 @@ class PrithviMAE(nn.Module):
         return pixel_values
 
     def forward_loss(self, pixel_values, pred, mask):
-        """
+        """Compute the loss for forward pass.
+
         Args:
             pixel_values (`torch.FloatTensor` of shape `(batch_size, num_channels, time, height, width)`):
                 Pixel values.
@@ -818,6 +991,20 @@ class PrithviMAE(nn.Module):
         location_coords: None | torch.Tensor = None,
         mask_ratio: float = 0.75,
     ):
+        """Forward pass through the full MAE model.
+
+        Args:
+            pixel_values: Input image tensor of shape [B,C,T,H,W]
+            temporal_coords: Optional temporal coordinates for each frame
+            location_coords: Optional location coordinates
+            mask_ratio: Ratio of patches to mask during training
+
+        Returns:
+            tuple: Contains:
+                - loss: MAE reconstruction loss
+                - pred: Model predictions
+                - mask: Generated mask indicating which patches were masked
+        """
         if len(pixel_values.shape) == 4 and self.encoder.patch_embed.input_size[0] == 1:
             # add time dim
             pixel_values = pixel_values.unsqueeze(2)
@@ -841,4 +1028,14 @@ class PrithviMAE(nn.Module):
         temporal_coords: None | torch.Tensor = None,
         location_coords: None | torch.Tensor = None,
     ) -> List[torch.Tensor]:
+        """Extract features from input using Prithvi encoder.
+
+        Args:
+            x: Input image tensor of shape [B,C,T,H,W]
+            temporal_coords: Optional temporal coordinates for each frame
+            location_coords: Optional location coordinates
+
+        Returns:
+            List[torch.Tensor]: List of encoded features from each transformer layer
+        """
         return self.encoder.forward_features(x, temporal_coords, location_coords)

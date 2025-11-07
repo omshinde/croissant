@@ -1,13 +1,39 @@
+"""GeoCroissant Time-Series Data Conversion Utilities.
+
+This module provides utility functions for handling time-series data in GeoCroissant format.
+It includes tools for name sanitization, version management, and other conversion operations
+necessary for working with time-series data within the GeoCroissant framework.
+"""
+
 import json
-from datetime import datetime
 import re
+from datetime import datetime
 
 
 def sanitize_name(name):
+    """Sanitize a name to be valid for use in GeoCroissant.
+
+    Args:
+        name: Input string to sanitize.
+
+    Returns:
+        str: Sanitized name containing only alphanumeric chars, underscores and hyphens.
+    """
     return re.sub(r"[^a-zA-Z0-9_\-]", "-", name)
 
 
 def ensure_semver(version):
+    """Ensure a version string follows semantic versioning format.
+
+    Args:
+        version: Input version string to process.
+
+    Returns:
+        str: Valid semantic version with major.minor.patch format.
+            Returns "1.0.0" if input is empty.
+            Strips leading 'v' if present.
+            Adds ".0" if only major.minor is provided.
+    """
     if not version:
         return "1.0.0"
     if version.startswith("v"):
@@ -19,6 +45,14 @@ def ensure_semver(version):
 
 
 def get_bbox_union(bboxes):
+    """Calculate the union of multiple bounding boxes.
+
+    Args:
+        bboxes: List of bounding boxes where each box is [minx, miny, maxx, maxy].
+
+    Returns:
+        list: Combined bounding box [minx, miny, maxx, maxy] that encompasses all input boxes.
+    """
     # Union of all bounding boxes
     minx = min(b[0] for b in bboxes)
     miny = min(b[1] for b in bboxes)
@@ -28,6 +62,14 @@ def get_bbox_union(bboxes):
 
 
 def get_time_range(times):
+    """Get the earliest and latest times from a list of ISO8601 timestamps.
+
+    Args:
+        times: List of ISO8601 timestamp strings.
+
+    Returns:
+        tuple: (earliest, latest) timestamps, or (None, None) if no valid times.
+    """
     # Get min/max ISO8601 times
     times = [t for t in times if t]
     if not times:
@@ -37,6 +79,17 @@ def get_time_range(times):
 
 
 def stac_itemcollection_to_geocroissant(stac_dict):
+    """Convert a STAC ItemCollection to GeoCroissant metadata format.
+
+    Args:
+        stac_dict: Dictionary containing a STAC ItemCollection.
+
+    Returns:
+        dict: GeoCroissant metadata dictionary.
+
+    Raises:
+        ValueError: If no features are found in the STAC ItemCollection.
+    """
     features = stac_dict.get("features", [])
     if not features:
         raise ValueError("No features found in STAC ItemCollection.")
@@ -123,8 +176,8 @@ def stac_itemcollection_to_geocroissant(stac_dict):
     references = []
     for link in stac_dict.get("links", []):
         rel = link.get("rel")
-        href = link.get("hre")
-        if not href or rel == "sel":
+        href = link.get("href")
+        if not href or rel == "self":
             continue
         references.append(
             {
@@ -158,10 +211,10 @@ def stac_itemcollection_to_geocroissant(stac_dict):
         for key, asset in assets.items():
             file_object = {
                 "@type": "cr:FileObject",
-                "@id": "{feat['id']}/{key}",
-                "name": "{feat['id']}/{key}",
+                "@id": f"{feat['id']}/{key}",
+                "name": f"{feat['id']}/{key}",
                 "description": asset.get("description", asset.get("title", "")),
-                "contentUrl": asset.get("hre"),
+                "contentUrl": asset.get("href"),
                 "encodingFormat": asset.get("type", "application/octet-stream"),
                 "md5": "placeholder_hash",
             }
@@ -171,34 +224,34 @@ def stac_itemcollection_to_geocroissant(stac_dict):
     croissant["recordSet"] = [
         {
             "@type": "cr:RecordSet",
-            "@id": "{dataset_id}_items",
-            "name": "{dataset_id}_items",
-            "description": "STAC items from {dataset_id} collection",
+            "@id": f"{dataset_id}_items",
+            "name": f"{dataset_id}_items",
+            "description": f"STAC items from {dataset_id} collection",
             "field": [
                 {
                     "@type": "cr:Field",
-                    "@id": "{dataset_id}_items/id",
+                    "@id": f"{dataset_id}_items/id",
                     "name": "id",
                     "description": "STAC item identifier",
                     "dataType": "sc:Text",
                 },
                 {
                     "@type": "cr:Field",
-                    "@id": "{dataset_id}_items/datetime",
+                    "@id": f"{dataset_id}_items/datetime",
                     "name": "datetime",
                     "description": "Item datetime",
                     "dataType": "sc:DateTime",
                 },
                 {
                     "@type": "cr:Field",
-                    "@id": "{dataset_id}_items/bbox",
+                    "@id": f"{dataset_id}_items/bbox",
                     "name": "bbox",
                     "description": "Bounding box coordinates",
                     "dataType": "sc:Text",
                 },
                 {
                     "@type": "cr:Field",
-                    "@id": "{dataset_id}_items/assets",
+                    "@id": f"{dataset_id}_items/assets",
                     "name": "assets",
                     "description": "Available assets",
                     "dataType": "sc:Text",
@@ -212,10 +265,10 @@ def stac_itemcollection_to_geocroissant(stac_dict):
     for feat in features:
         props = feat.get("properties", {})
         record_data = {
-            "{dataset_id}_items/id": feat.get("id"),
-            "{dataset_id}_items/datetime": props.get("datetime"),
-            "{dataset_id}_items/bbox": feat.get("bbox"),
-            "{dataset_id}_items/assets": list(feat.get("assets", {}).keys()),
+            f"{dataset_id}_items/id": feat.get("id"),
+            f"{dataset_id}_items/datetime": props.get("datetime"),
+            f"{dataset_id}_items/bbox": feat.get("bbox"),
+            f"{dataset_id}_items/assets": list(feat.get("assets", {}).keys()),
         }
         croissant["recordSet"][0]["data"].append(record_data)
 
@@ -247,7 +300,7 @@ def stac_itemcollection_to_geocroissant(stac_dict):
     print("\n\033[1mUnmapped STAC Fields:\033[0m")
     if extra_fields:
         for k, v in extra_fields.items():
-            print("- {k}: {type(v).__name__}")
+            print(f"- {k}: {type(v).__name__}")
     else:
         print("None ")
 

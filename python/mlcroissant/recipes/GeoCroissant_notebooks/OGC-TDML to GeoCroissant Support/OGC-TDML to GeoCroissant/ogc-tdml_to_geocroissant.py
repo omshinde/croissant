@@ -1,5 +1,13 @@
+"""OGC TDML to GeoCroissant Conversion Module.
+
+This module provides functionality for converting OGC Training Data Markup Language (TDML)
+documents to GeoCroissant format. It handles the parsing and transformation of TDML
+metadata, ensuring compatibility with the GeoCroissant framework.
+"""
+
 import json
 import re
+
 import pytdml.io
 
 
@@ -11,6 +19,12 @@ def safe_str(value, default="Unknown"):
 
 
 def tdml_to_geocroissant(tdml_path, output_path):
+    """Convert OGC-TDML format to GeoCroissant format.
+
+    Args:
+        tdml_path: Path to the input TDML JSON file.
+        output_path: Path where the converted GeoCroissant file will be saved.
+    """
     tdml = pytdml.io.read_from_json(tdml_path)
 
     # Build variableMeasured from classes and bands
@@ -55,7 +69,9 @@ def tdml_to_geocroissant(tdml_path, output_path):
             "@id": "data_repo",
             "name": "data_repo",
             "description": "Directory containing the dataset files",
-            "contentUrl": "https://huggingface.co/datasets/harshinde/hls_burn_scars",  # Use actual URL from the data
+            "contentUrl": (
+                "https://huggingface.co/datasets/harshinde/hls_burn_scars"
+            ),  # Use actual URL from the data
             "encodingFormat": "local_directory",
             "md5": "placeholder_hash_for_directory",
         }
@@ -108,13 +124,17 @@ def tdml_to_geocroissant(tdml_path, output_path):
         "@type": "cr:RecordSet",
         "@id": "{sanitized_name}",
         "name": "{sanitized_name}",
-        "description": "HLS Burn Scars dataset with satellite imagery and burn scar mask annotations.",
+        "description": (
+            "HLS Burn Scars dataset with satellite imagery and burn scar mask annotations."
+        ),
         "field": [
             {
                 "@type": "cr:Field",
                 "@id": "{sanitized_name}/image",
                 "name": "{sanitized_name}/image",
-                "description": "Satellite imagery from Harmonized Landsat and Sentinel-2 sensors with 6 bands converted to reflectance.",
+                "description": (
+                    "Satellite imagery from Harmonized Landsat and Sentinel-2 sensors with 6 bands converted to reflectance."
+                ),
                 "dataType": "sc:ImageObject",
                 "source": {
                     "fileSet": {"@id": "tiff-files-for-config-hls_burn_scars"},
@@ -136,7 +156,9 @@ def tdml_to_geocroissant(tdml_path, output_path):
                 "@type": "cr:Field",
                 "@id": "{sanitized_name}/mask",
                 "name": "{sanitized_name}/mask",
-                "description": "Burn scar mask annotations with values: 1=Burn scar, 0=Not burned, -1=Missing data.",
+                "description": (
+                    "Burn scar mask annotations with values: 1=Burn scar, 0=Not burned, -1=Missing data."
+                ),
                 "dataType": "sc:ImageObject",
                 "source": {
                     "fileSet": {"@id": "tiff-files-for-config-hls_burn_scars"},
@@ -207,9 +229,11 @@ def tdml_to_geocroissant(tdml_path, output_path):
         "creator": {
             "@type": "Organization",
             "name": safe_str(
-                getattr(tdml, "providers", ["Unknown Provider"])[0]
-                if hasattr(tdml, "providers") and tdml.providers
-                else None,
+                (
+                    getattr(tdml, "providers", ["Unknown Provider"])[0]
+                    if hasattr(tdml, "providers") and tdml.providers
+                    else None
+                ),
                 "Unknown Provider",
             ),
         },
@@ -217,7 +241,9 @@ def tdml_to_geocroissant(tdml_path, output_path):
         "dateCreated": safe_str(getattr(tdml, "createdTime", "2025-01-17")),
         "dateModified": safe_str(getattr(tdml, "updatedTime", "2025-01-17")),
         "datePublished": safe_str(getattr(tdml, "createdTime", "2025-01-17")),
-        "citeAs": "@dataset{{{sanitized_name}, title={{{safe_str(getattr(tdml, 'description', 'Converted from OGC-TDML format'))}}}, author={{{safe_str(getattr(tdml, 'providers', ['Unknown Provider'])[0] if hasattr(tdml, 'providers') and tdml.providers else None, 'Unknown Provider')}}}, year={{{safe_str(getattr(tdml, 'createdTime', '2025-01-17'))[:4]}}}, url={{https://huggingface.co/datasets/harshinde/hls_burn_scars}}}}",
+        "citeAs": (
+            "@dataset{{{sanitized_name}, title={{{safe_str(getattr(tdml, 'description', 'Converted from OGC-TDML format'))}}}, author={{{safe_str(getattr(tdml, 'providers', ['Unknown Provider'])[0] if hasattr(tdml, 'providers') and tdml.providers else None, 'Unknown Provider')}}}, year={{{safe_str(getattr(tdml, 'createdTime', '2025-01-17'))[:4]}}}, url={{https://huggingface.co/datasets/harshinde/hls_burn_scars}}}}"
+        ),
         "keywords": [
             "geospatial",
             "machine learning",
