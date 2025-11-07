@@ -154,18 +154,26 @@ def stac_to_geocroissant(stac_item, file_hash=None, filename=None):
                 "@id": asset_key,
                 "name": filename if filename else asset_key,
                 "description": "{asset_key} asset for {item_id}",
-                "contentUrl": download_url
-                if asset_key.startswith("data")
-                else "https://api.stac.ceda.ac.uk/collections/cmip6/items/{item_id}",
-                "encodingFormat": "application/netcd"
-                if asset_key.startswith("data")
-                else "application/json",
-                "md5": file_hash
-                if file_hash and asset_key.startswith("data")
-                else "placeholder_hash",
-                "sha256": file_hash
-                if file_hash and asset_key.startswith("data")
-                else "placeholder_hash",
+                "contentUrl": (
+                    download_url
+                    if asset_key.startswith("data")
+                    else "https://api.stac.ceda.ac.uk/collections/cmip6/items/{item_id}"
+                ),
+                "encodingFormat": (
+                    "application/netcd"
+                    if asset_key.startswith("data")
+                    else "application/json"
+                ),
+                "md5": (
+                    file_hash
+                    if file_hash and asset_key.startswith("data")
+                    else "placeholder_hash"
+                ),
+                "sha256": (
+                    file_hash
+                    if file_hash and asset_key.startswith("data")
+                    else "placeholder_hash"
+                ),
             }
             for asset_key, asset in assets.items()
         ]

@@ -63,9 +63,9 @@ class DynamicCroissantConverter:
                 "dimensions": list(var.dims),
                 "dtype": str(var.dtype),
                 "size_mb": float(var.nbytes / 1e6),
-                "attributes": dict(var.attrs)
-                if hasattr(var, "attrs") and var.attrs
-                else {},
+                "attributes": (
+                    dict(var.attrs) if hasattr(var, "attrs") and var.attrs else {}
+                ),
             }
         return variables
 
@@ -247,9 +247,11 @@ class DynamicCroissantConverter:
                 "Climate Data",
             ],
             "citeAs": "NASA POWER Project. Prediction Of Worldwide Energy Resource (POWER) Project. NASA Langley Research Center.",
-            "datePublished": f"{year}-12-31"
-            if not month
-            else f"{year}-{month:02d}-{calendar.monthrange(year, month)[1]}",
+            "datePublished": (
+                f"{year}-12-31"
+                if not month
+                else f"{year}-{month:02d}-{calendar.monthrange(year, month)[1]}"
+            ),
             "license": "https://creativecommons.org/licenses/by/4.0/",
             "geocr:BoundingBox": [
                 self.ds_full.attrs.get("geospatial_lon_min", -180.0),
@@ -269,12 +271,16 @@ class DynamicCroissantConverter:
             "distribution": [
                 {
                     "@type": "cr:FileObject",
-                    "@id": f"zarr-store-{year}-{month:02d}"
-                    if month
-                    else f"zarr-store-{year}",
-                    "name": f"zarr-store-{year}-{month:02d}"
-                    if month
-                    else f"zarr-store-{year}",
+                    "@id": (
+                        f"zarr-store-{year}-{month:02d}"
+                        if month
+                        else f"zarr-store-{year}"
+                    ),
+                    "name": (
+                        f"zarr-store-{year}-{month:02d}"
+                        if month
+                        else f"zarr-store-{year}"
+                    ),
                     "description": f"Zarr datacube for NASA POWER data {description_suffix}",
                     "contentUrl": self.zarr_url,
                     "encodingFormat": "application/x-zarr",
@@ -284,12 +290,16 @@ class DynamicCroissantConverter:
             "recordSet": [
                 {
                     "@type": "cr:RecordSet",
-                    "@id": f"nasa_power_data_{year}_{month:02d}"
-                    if month
-                    else f"nasa_power_data_{year}",
-                    "name": f"nasa_power_data_{year}_{month:02d}"
-                    if month
-                    else f"nasa_power_data_{year}",
+                    "@id": (
+                        f"nasa_power_data_{year}_{month:02d}"
+                        if month
+                        else f"nasa_power_data_{year}"
+                    ),
+                    "name": (
+                        f"nasa_power_data_{year}_{month:02d}"
+                        if month
+                        else f"nasa_power_data_{year}"
+                    ),
                     "description": f"NASA POWER climate data {description_suffix}",
                     "field": [],
                 }
@@ -303,42 +313,50 @@ class DynamicCroissantConverter:
         for coord_name, coord in self.ds_subset.coords.items():
             coord_field = {
                 "@type": "cr:Field",
-                "@id": f"nasa_power_data_{year}_{month:02d}/{coord_name}"
-                if month
-                else f"nasa_power_data_{year}/{coord_name}",
-                "name": f"nasa_power_data_{year}_{month:02d}/{coord_name}"
-                if month
-                else f"nasa_power_data_{year}/{coord_name}",
+                "@id": (
+                    f"nasa_power_data_{year}_{month:02d}/{coord_name}"
+                    if month
+                    else f"nasa_power_data_{year}/{coord_name}"
+                ),
+                "name": (
+                    f"nasa_power_data_{year}_{month:02d}/{coord_name}"
+                    if month
+                    else f"nasa_power_data_{year}/{coord_name}"
+                ),
                 "description": f"Coordinate: {coord_name}",
                 "dataType": "sc:Float" if coord.dtype.kind == "f" else "sc:Date",
                 "source": {
                     "fileObject": {
-                        "@id": f"zarr-store-{year}-{month:02d}"
-                        if month
-                        else f"zarr-store-{year}"
+                        "@id": (
+                            f"zarr-store-{year}-{month:02d}"
+                            if month
+                            else f"zarr-store-{year}"
+                        )
                     },
                     "extract": {"jsonPath": f"$.{coord_name}"},
                 },
                 "geocr:dataShape": list(coord.shape),
-                "geocr:validRange": {
-                    "min": -90.0
+                "geocr:validRange": (
+                    {
+                        "min": (
+                            -90.0
+                            if coord_name == "lat"
+                            else -180.0 if coord_name == "lon" else None
+                        ),
+                        "max": (
+                            90.0
+                            if coord_name == "lat"
+                            else 180.0 if coord_name == "lon" else None
+                        ),
+                    }
+                    if coord_name in ["lat", "lon"]
+                    else None
+                ),
+                "geocr:units": (
+                    "degrees_north"
                     if coord_name == "lat"
-                    else -180.0
-                    if coord_name == "lon"
-                    else None,
-                    "max": 90.0
-                    if coord_name == "lat"
-                    else 180.0
-                    if coord_name == "lon"
-                    else None,
-                }
-                if coord_name in ["lat", "lon"]
-                else None,
-                "geocr:units": "degrees_north"
-                if coord_name == "lat"
-                else "degrees_east"
-                if coord_name == "lon"
-                else None,
+                    else "degrees_east" if coord_name == "lon" else None
+                ),
             }
             # Remove None values
             coord_field = {k: v for k, v in coord_field.items() if v is not None}
@@ -348,30 +366,38 @@ class DynamicCroissantConverter:
         for var_name, var in self.ds_subset.data_vars.items():
             var_field = {
                 "@type": "cr:Field",
-                "@id": f"nasa_power_data_{year}_{month:02d}/{var_name}"
-                if month
-                else f"nasa_power_data_{year}/{var_name}",
-                "name": f"nasa_power_data_{year}_{month:02d}/{var_name}"
-                if month
-                else f"nasa_power_data_{year}/{var_name}",
+                "@id": (
+                    f"nasa_power_data_{year}_{month:02d}/{var_name}"
+                    if month
+                    else f"nasa_power_data_{year}/{var_name}"
+                ),
+                "name": (
+                    f"nasa_power_data_{year}_{month:02d}/{var_name}"
+                    if month
+                    else f"nasa_power_data_{year}/{var_name}"
+                ),
                 "description": var.attrs.get("long_name", var_name),
                 "dataType": "sc:Float",
                 "source": {
                     "fileObject": {
-                        "@id": f"zarr-store-{year}-{month:02d}"
-                        if month
-                        else f"zarr-store-{year}"
+                        "@id": (
+                            f"zarr-store-{year}-{month:02d}"
+                            if month
+                            else f"zarr-store-{year}"
+                        )
                     },
                     "extract": {"jsonPath": f"$.{var_name}"},
                 },
                 "geocr:dataShape": list(var.shape),
-                "geocr:validRange": {
-                    "min": float(var.attrs.get("valid_min", 0.0)),
-                    "max": float(var.attrs.get("valid_max", 100.0)),
-                }
-                if var.attrs.get("valid_min") is not None
-                and var.attrs.get("valid_max") is not None
-                else None,
+                "geocr:validRange": (
+                    {
+                        "min": float(var.attrs.get("valid_min", 0.0)),
+                        "max": float(var.attrs.get("valid_max", 100.0)),
+                    }
+                    if var.attrs.get("valid_min") is not None
+                    and var.attrs.get("valid_max") is not None
+                    else None
+                ),
                 "geocr:units": var.attrs.get("units", ""),
                 "geocr:standardName": var.attrs.get("standard_name", ""),
                 "geocr:definition": var.attrs.get("definition", ""),

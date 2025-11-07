@@ -192,9 +192,9 @@ class CompleteNASAUMMGToGeoCroissantConverter:
 
         return {
             "hls_sentinel2_granule/granule_id": umm.get("GranuleUR", ""),
-            "hls_sentinel2_granule/cloud_coverage": float(cloud_coverage)
-            if cloud_coverage
-            else 0.0,
+            "hls_sentinel2_granule/cloud_coverage": (
+                float(cloud_coverage) if cloud_coverage else 0.0
+            ),
             "hls_sentinel2_granule/temporal_extent": temporal_extent,
             "hls_sentinel2_granule/spatial_coverage": spatial_coverage,
             "hls_sentinel2_granule/spectral_bands": "B01,B02,B03,B04,B05,B06,B07,B08,B8A,B09,B10,B11,B12",

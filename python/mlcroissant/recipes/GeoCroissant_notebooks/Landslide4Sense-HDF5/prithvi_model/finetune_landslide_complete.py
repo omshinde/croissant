@@ -19,11 +19,15 @@ from pathlib import Path
 import sys
 import random
 
-# Add the current directory to path to import prithvi_mae
-sys.path.append(".")
-
 # Import the actual Prithvi model
 from prithvi_mae import PrithviMAE
+import logging
+
+logging.basicConfig(level=logging.INFO)  # once per app
+logger = logging.getLogger(__name__)
+
+# Add the current directory to path to import prithvi_mae
+sys.path.append(".")
 
 
 class MultispectralTransforms:
@@ -437,7 +441,8 @@ def main():
             },
             name="prithvi-eo-100m-landslide4sense",
         )
-    except:
+    except Exception as e:
+        logger.exception("work failed: %s", e)
         print("Wandb not available, continuing without logging")
         wandb.run = None
 

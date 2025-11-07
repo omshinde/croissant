@@ -220,46 +220,48 @@ def croissant_to_stac_item(croissant_json, output_path=None):
             "constellation": "HLS",
             "dataset_size": "804 scenes",
             "image_size": "512x512 pixels",
-            "hls:bands": bands
-            if bands
-            else [
-                {
-                    "name": "Blue",
-                    "common_name": "blue",
-                    "hls_band": "B02",
-                    "wavelength": "490nm",
-                },
-                {
-                    "name": "Green",
-                    "common_name": "green",
-                    "hls_band": "B03",
-                    "wavelength": "560nm",
-                },
-                {
-                    "name": "Red",
-                    "common_name": "red",
-                    "hls_band": "B04",
-                    "wavelength": "665nm",
-                },
-                {
-                    "name": "NIR",
-                    "common_name": "nir",
-                    "hls_band": "B8A",
-                    "wavelength": "865nm",
-                },
-                {
-                    "name": "SW1",
-                    "common_name": "swir1",
-                    "hls_band": "B11",
-                    "wavelength": "1610nm",
-                },
-                {
-                    "name": "SW2",
-                    "common_name": "swir2",
-                    "hls_band": "B12",
-                    "wavelength": "2190nm",
-                },
-            ],
+            "hls:bands": (
+                bands
+                if bands
+                else [
+                    {
+                        "name": "Blue",
+                        "common_name": "blue",
+                        "hls_band": "B02",
+                        "wavelength": "490nm",
+                    },
+                    {
+                        "name": "Green",
+                        "common_name": "green",
+                        "hls_band": "B03",
+                        "wavelength": "560nm",
+                    },
+                    {
+                        "name": "Red",
+                        "common_name": "red",
+                        "hls_band": "B04",
+                        "wavelength": "665nm",
+                    },
+                    {
+                        "name": "NIR",
+                        "common_name": "nir",
+                        "hls_band": "B8A",
+                        "wavelength": "865nm",
+                    },
+                    {
+                        "name": "SW1",
+                        "common_name": "swir1",
+                        "hls_band": "B11",
+                        "wavelength": "1610nm",
+                    },
+                    {
+                        "name": "SW2",
+                        "common_name": "swir2",
+                        "hls_band": "B12",
+                        "wavelength": "2190nm",
+                    },
+                ]
+            ),
             "format": "TIFF",
         },
     )

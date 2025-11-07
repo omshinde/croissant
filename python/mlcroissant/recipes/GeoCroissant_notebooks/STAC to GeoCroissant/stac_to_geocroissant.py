@@ -227,9 +227,9 @@ def stac_to_geocroissant(stac_dict):
         record_set = {
             "@type": "cr:RecordSet",
             "@id": "{dataset_id}_records" if dataset_id else "dataset_records",
-            "name": "{dataset_id} data records"
-            if dataset_id
-            else "Dataset data records",
+            "name": (
+                "{dataset_id} data records" if dataset_id else "Dataset data records"
+            ),
             "description": "Data records for this dataset",
             "field": [],
         }

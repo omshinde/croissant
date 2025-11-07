@@ -8,6 +8,10 @@ import yaml
 
 from prithvi_mae import PrithviMAE
 from einops import rearrange
+import logging
+
+logging.basicConfig(level=logging.INFO)  # once per app
+logger = logging.getLogger(__name__)
 
 NO_DATA = -9999
 NO_DATA_FLOAT = 0.0001
@@ -72,7 +76,8 @@ def read_geotiff(file_path: str):
         meta = src.meta
         try:
             coords = src.lnglat()
-        except:
+        except Exception as e:
+            logger.exception("work failed: %s", e)
             # Cannot read coords
             coords = None
 

@@ -207,9 +207,11 @@ def tdml_to_geocroissant(tdml_path, output_path):
         "creator": {
             "@type": "Organization",
             "name": safe_str(
-                getattr(tdml, "providers", ["Unknown Provider"])[0]
-                if hasattr(tdml, "providers") and tdml.providers
-                else None,
+                (
+                    getattr(tdml, "providers", ["Unknown Provider"])[0]
+                    if hasattr(tdml, "providers") and tdml.providers
+                    else None
+                ),
                 "Unknown Provider",
             ),
         },

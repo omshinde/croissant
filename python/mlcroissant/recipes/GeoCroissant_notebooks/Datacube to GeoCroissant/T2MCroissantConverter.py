@@ -215,25 +215,27 @@ class T2MCroissantConverter:
                     "extract": {"jsonPath": "$.{coord_name}"},
                 },
                 "geocr:dataShape": list(coord.shape),
-                "geocr:validRange": {
-                    "min": -90.0
+                "geocr:validRange": (
+                    {
+                        "min": (
+                            -90.0
+                            if coord_name == "lat"
+                            else -180.0 if coord_name == "lon" else None
+                        ),
+                        "max": (
+                            90.0
+                            if coord_name == "lat"
+                            else 180.0 if coord_name == "lon" else None
+                        ),
+                    }
+                    if coord_name in ["lat", "lon"]
+                    else None
+                ),
+                "geocr:units": (
+                    "degrees_north"
                     if coord_name == "lat"
-                    else -180.0
-                    if coord_name == "lon"
-                    else None,
-                    "max": 90.0
-                    if coord_name == "lat"
-                    else 180.0
-                    if coord_name == "lon"
-                    else None,
-                }
-                if coord_name in ["lat", "lon"]
-                else None,
-                "geocr:units": "degrees_north"
-                if coord_name == "lat"
-                else "degrees_east"
-                if coord_name == "lon"
-                else None,
+                    else "degrees_east" if coord_name == "lon" else None
+                ),
             }
             # Remove None values
             coord_field = {k: v for k, v in coord_field.items() if v is not None}
