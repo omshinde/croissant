@@ -1,12 +1,31 @@
+"""GeoCroissant to GeoDCAT Conversion Module.
+
+This module provides functionality for converting GeoCroissant metadata to GeoDCAT
+(Geographic Data Catalog Vocabulary) format. It handles the transformation of
+GeoCroissant's JSON metadata into RDF-based GeoDCAT representations, enabling
+interoperability with geographic data catalog systems.
+"""
+
 import json
-from rdflib import Graph, Namespace, URIRef, Literal
-from rdflib.namespace import DCTERMS, DCAT, FOAF, XSD, RDF, SKOS
 from urllib.parse import quote
+
+from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.namespace import DCAT, DCTERMS, FOAF, RDF, SKOS, XSD
 
 
 def croissant_to_geodcat_jsonld(
     croissant_json, output_file="geodcat.jsonld", gitattributes_file=".gitattributes"
 ):
+    """Convert GeoCroissant JSON to GeoDCAT JSON-LD format.
+
+    Args:
+        croissant_json: GeoCroissant metadata dictionary.
+        output_file: Path to output GeoDCAT JSON-LD file.
+        gitattributes_file: Path to .gitattributes file for LFS URLs.
+
+    Returns:
+        Graph: RDF graph containing the GeoDCAT representation.
+    """
     g = Graph()
 
     # Load real file URLs from .gitattributes
@@ -172,7 +191,10 @@ def croissant_to_geodcat_jsonld(
             g.add((geometry_uri, RDF.type, GEO.Geometry))
 
             # Create WKT representation of bounding box
-            wkt = f"POLYGON(({bbox[0]} {bbox[1]}, {bbox[2]} {bbox[1]}, {bbox[2]} {bbox[3]}, {bbox[0]} {bbox[3]}, {bbox[0]} {bbox[1]}))"
+            wkt = (
+                f"POLYGON(({bbox[0]} {bbox[1]}, {bbox[2]} {bbox[1]},"
+                f" {bbox[2]} {bbox[3]}, {bbox[0]} {bbox[3]}, {bbox[0]} {bbox[1]}))"
+            )
             g.add((geometry_uri, GEO.asWKT, Literal(wkt, datatype=GEO.wktLiteral)))
 
             # Add bounding box as GeoDCAT-AP property
@@ -345,17 +367,29 @@ def croissant_to_geodcat_jsonld(
                             if file_type == "images":
                                 if split_type == "train":
                                     title = f"Training Image {i+1}"
-                                    description = f"Training satellite image {i+1} from HLS burn scars dataset"
+                                    description = (
+                                        f"Training satellite image {i+1} from HLS burn"
+                                        " scars dataset"
+                                    )
                                 else:  # validation
                                     title = f"Validation Image {i+1}"
-                                    description = f"Validation satellite image {i+1} from HLS burn scars dataset"
+                                    description = (
+                                        f"Validation satellite image {i+1} from HLS"
+                                        " burn scars dataset"
+                                    )
                             else:  # annotations
                                 if split_type == "train":
                                     title = f"Training Mask {i+1}"
-                                    description = f"Training burn scar mask {i+1} from HLS burn scars dataset"
+                                    description = (
+                                        f"Training burn scar mask {i+1} from HLS burn"
+                                        " scars dataset"
+                                    )
                                 else:  # validation
                                     title = f"Validation Mask {i+1}"
-                                    description = f"Validation burn scar mask {i+1} from HLS burn scars dataset"
+                                    description = (
+                                        f"Validation burn scar mask {i+1} from HLS burn"
+                                        " scars dataset"
+                                    )
 
                             # Use the actual file URL as the distribution URI
                             if file_path.startswith("http"):

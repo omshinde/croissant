@@ -1,41 +1,37 @@
+"""Dynamic Converter for NASA POWER Data.
+
+This module provides functionality for converting NASA POWER (Prediction of Worldwide Energy
+Resources) data to GeoCroissant format. It allows users to specify year and month to
+generate metadata for specific time periods, and handles temporal data from the MERRA2
+dataset stored in Zarr format.
+"""
+
 import calendar
 import hashlib
 import json
 from typing import Any, Dict, Optional
-import xarray as xr
 
-"""
-Dynamic        if month:
-            start_date = f"{year}-{month:02d}-01T00:00:00Z"
-            end_date = f"{year}-{month:02d}-{calendar.monthrange(year, month)[1]}T23:59:59Z"
-            description_suffix = f"for {calendar.month_name[month]} {year}"
-        else:
-            start_date = f"{year}-01-01T00:00:00Z"
-            end_date = f"{year}-12-31T23:59:59Z"
-            description_suffix = f"for the year {year}"t Converter for NASA POWER Data
-Allows users to specify year and month to generate metadata for specific time periods
-"""
+import xarray as xr
 
 
 class DynamicCroissantConverter:
-    """Dynamic converter for NASA POWER data to GeoCroissant format"""
+    """Dynamic converter for NASA POWER data to GeoCroissant format."""
 
     def __init__(
         self,
         zarr_url: str = "s3://nasa-power/merra2/temporal/power_merra2_monthly_temporal_utc.zarr/",
     ):
-        """
-        Initialize the converter with the Zarr URL
+        """Initialize the converter with the Zarr URL.
 
         Args:
-            zarr_url: URL to the NASA POWER Zarr dataset
+            zarr_url: URL to the NASA POWER Zarr dataset.
         """
         self.zarr_url = zarr_url
         self.ds_full = None
         self.ds_subset = None
 
     def load_dataset(self) -> bool:
-        """Load the full dataset from S3"""
+        """Load the full dataset from S3."""
         try:
             print(f"Loading NASA POWER dataset from {self.zarr_url}...")
             self.ds_full = xr.open_zarr(self.zarr_url, storage_options={"anon": True})
@@ -44,7 +40,8 @@ class DynamicCroissantConverter:
             print(f"  - Total size: {self.ds_full.nbytes / 1e9:.2f} GB")
             print(f"  - Variables: {len(self.ds_full.data_vars)}")
             print(
-                f"  - Time range: {self.ds_full.time.values[0]} to {self.ds_full.time.values[-1]}"
+                f"  - Time range: {self.ds_full.time.values[0]} to"
+                f" {self.ds_full.time.values[-1]}"
             )
             return True
         except Exception as e:
@@ -52,7 +49,7 @@ class DynamicCroissantConverter:
             return False
 
     def get_available_variables(self) -> Dict[str, Any]:
-        """Get list of available variables with their metadata"""
+        """Get list of available variables with their metadata."""
         if not self.ds_full:
             return {}
 
@@ -72,16 +69,15 @@ class DynamicCroissantConverter:
     def subset_data(
         self, year: int, month: Optional[int] = None, variables: Optional[list] = None
     ) -> bool:
-        """
-        Subset the data for specific year/month and variables
+        """Subset the data for specific year/month and variables.
 
         Args:
-            year: Year to extract (e.g., 2020)
-            month: Month to extract (1-12), if None extracts entire year
-            variables: List of variable names to include, if None includes all
+            year: Year to extract (e.g., 2020).
+            month: Month to extract (1-12), if None extracts entire year.
+            variables: List of variable names to include, if None includes all.
 
         Returns:
-            bool: True if successful, False otherwise
+            bool: True if successful, False otherwise.
         """
         if not self.ds_full:
             print("Error: Dataset not loaded. Call load_dataset() first.")
@@ -115,7 +111,8 @@ class DynamicCroissantConverter:
                     print(f"  - Selected variables: {available_vars}")
                 else:
                     print(
-                        "  - Warning: None of the specified variables found. Using all variables."
+                        "  - Warning: None of the specified variables found. Using all"
+                        " variables."
                     )
 
             print(f"  - Subset dimensions: {self.ds_subset.dims}")
@@ -129,22 +126,21 @@ class DynamicCroissantConverter:
             return False
 
     def generate_checksum(self, content: str) -> str:
-        """Generate MD5 checksum for content"""
+        """Generate MD5 checksum for content."""
         return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def create_croissant_metadata(
         self, year: int, month: Optional[int] = None, output_file: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Create GeoCroissant metadata for the subset data
+        """Create GeoCroissant metadata for the subset data.
 
         Args:
-            year: Year of the data
-            month: Month of the data (if None, entire year)
-            output_file: Output file path (if None, auto-generated)
+            year: Year of the data.
+            month: Month of the data (if None, entire year).
+            output_file: Output file path (if None, auto-generated).
 
         Returns:
-            dict: GeoCroissant metadata
+            dict: GeoCroissant metadata.
         """
         if not self.ds_subset:
             print("Error: No subset data available. Call subset_data() first.")
@@ -226,7 +222,11 @@ class DynamicCroissantConverter:
                 f"nasa-power-{year}-{month:02d}" if month else f"nasa-power-{year}",
                 f"POWER-{year}-{month:02d}" if month else f"POWER-{year}",
             ],
-            "description": f"NASA POWER climate dataset {description_suffix}. This dataset provides global climate data at 0.5° latitude and 0.625° longitude resolution with monthly temporal resolution.",
+            "description": (
+                f"NASA POWER climate dataset {description_suffix}. This dataset"
+                " provides global climate data at 0.5° latitude and 0.625° longitude"
+                " resolution with monthly temporal resolution."
+            ),
             "conformsTo": "http://mlcommons.org/croissant/1.0",
             "version": "1.0.0",
             "creator": {
@@ -246,7 +246,10 @@ class DynamicCroissantConverter:
                 "Meteorology",
                 "Climate Data",
             ],
-            "citeAs": "NASA POWER Project. Prediction Of Worldwide Energy Resource (POWER) Project. NASA Langley Research Center.",
+            "citeAs": (
+                "NASA POWER Project. Prediction Of Worldwide Energy Resource (POWER)"
+                " Project. NASA Langley Research Center."
+            ),
             "datePublished": (
                 f"{year}-12-31"
                 if not month
@@ -281,7 +284,9 @@ class DynamicCroissantConverter:
                         if month
                         else f"zarr-store-{year}"
                     ),
-                    "description": f"Zarr datacube for NASA POWER data {description_suffix}",
+                    "description": (
+                        f"Zarr datacube for NASA POWER data {description_suffix}"
+                    ),
                     "contentUrl": self.zarr_url,
                     "encodingFormat": "application/x-zarr",
                     "md5": md5_hash,
@@ -341,12 +346,16 @@ class DynamicCroissantConverter:
                         "min": (
                             -90.0
                             if coord_name == "lat"
-                            else -180.0 if coord_name == "lon" else None
+                            else -180.0
+                            if coord_name == "lon"
+                            else None
                         ),
                         "max": (
                             90.0
                             if coord_name == "lat"
-                            else 180.0 if coord_name == "lon" else None
+                            else 180.0
+                            if coord_name == "lon"
+                            else None
                         ),
                     }
                     if coord_name in ["lat", "lon"]
@@ -355,7 +364,9 @@ class DynamicCroissantConverter:
                 "geocr:units": (
                     "degrees_north"
                     if coord_name == "lat"
-                    else "degrees_east" if coord_name == "lon" else None
+                    else "degrees_east"
+                    if coord_name == "lon"
+                    else None
                 ),
             }
             # Remove None values
@@ -423,20 +434,20 @@ class DynamicCroissantConverter:
         variables: Optional[list] = None,
         output_file: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Complete conversion pipeline
+        """Complete conversion pipeline.
 
         Args:
-            year: Year to convert
-            month: Month to convert (1-12), if None converts entire year
-            variables: List of variables to include, if None includes all
-            output_file: Output file path, if None auto-generated
+            year: Year to convert.
+            month: Month to convert (1-12), if None converts entire year.
+            variables: List of variables to include, if None includes all.
+            output_file: Output file path, if None auto-generated.
 
         Returns:
-            dict: GeoCroissant metadata
+            dict: GeoCroissant metadata.
         """
         print(
-            f"Starting conversion for {calendar.month_name[month] if month else 'year'} {year}..."
+            "Starting conversion for"
+            f" {calendar.month_name[month] if month else 'year'} {year}..."
         )
 
         # Load dataset

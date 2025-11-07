@@ -265,9 +265,9 @@ class ReadFields(Operation):
 
                 if self.node.ctx.is_v0():
                     # v0 only supports str names
-                    result[field.name] = (
-                        value  # pytype: disable=container-type-mismatch
-                    )
+                    result[
+                        field.name
+                    ] = value  # pytype: disable=container-type-mismatch
                 else:
                     if field in self.node.fields:
                         result[field.id] = value

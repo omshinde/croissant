@@ -1,9 +1,18 @@
+"""GeoCroissant to STAC Converter Module.
+
+This module provides functionality for converting GeoCroissant metadata to STAC
+(SpatioTemporal Asset Catalog) format. It handles the transformation of GeoCroissant's
+structured data into STAC Items and Assets, incorporating relevant extensions like
+Table and Scientific metadata.
+"""
+
 import json
 from datetime import datetime
 from typing import Dict, List
-from pystac import Item, Asset, MediaType
-from pystac.extensions.table import TableExtension
+
+from pystac import Asset, Item, MediaType
 from pystac.extensions.scientific import ScientificExtension
+from pystac.extensions.table import TableExtension
 
 # License mapping from URL
 KNOWN_LICENSES = {
@@ -213,7 +222,9 @@ def croissant_to_stac_item(croissant_json, output_path=None):
             "keywords": keywords,
             "providers": providers,
             "msft:region": "US",
-            "msft:short_description": "HLS burn scars imagery and masks for US (2018-2021)",
+            "msft:short_description": (
+                "HLS burn scars imagery and masks for US (2018-2021)"
+            ),
             "gsd": 30,  # Ground sample distance in meters (Landsat/Sentinel-2)
             "platform": "Landsat-8, Sentinel-2",
             "instruments": ["OLI", "TIRS", "MSI"],
@@ -288,7 +299,10 @@ def croissant_to_stac_item(croissant_json, output_path=None):
         from pystac.extensions.scientific import Publication
 
         # Create citation from data collection info
-        citation = f"{data_collection.get('name', '')}. {data_collection.get('description', '')} Available at: {dataset_url}"
+        citation = (
+            f"{data_collection.get('name', '')}."
+            f" {data_collection.get('description', '')} Available at: {dataset_url}"
+        )
         publication = Publication(doi=doi, citation=citation)
         scientific_ext.publications = [publication]
 

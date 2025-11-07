@@ -1,13 +1,36 @@
+"""STAC to GeoCroissant Conversion Module.
+
+This module provides functionality for converting SpatioTemporal Asset Catalog (STAC)
+metadata to GeoCroissant format. It includes utilities for handling name sanitization,
+version management, and metadata transformation between STAC and GeoCroissant schemas.
+"""
+
 import json
-from datetime import datetime
 import re
+from datetime import datetime
 
 
 def sanitize_name(name):
+    """Sanitize a name to be compatible with GeoCroissant requirements.
+
+    Args:
+        name: String to be sanitized.
+
+    Returns:
+        Sanitized string containing only alphanumeric characters, underscores and hyphens.
+    """
     return re.sub(r"[^a-zA-Z0-9_\-]", "-", name)
 
 
 def ensure_semver(version):
+    """Ensure a version string follows semantic versioning format.
+
+    Args:
+        version: Input version string.
+
+    Returns:
+        String in semver format (MAJOR.MINOR.PATCH).
+    """
     if not version:
         return "1.0.0"
     if version.startswith("v"):
@@ -19,6 +42,14 @@ def ensure_semver(version):
 
 
 def stac_to_geocroissant(stac_dict):
+    """Convert STAC metadata dictionary to GeoCroissant format.
+
+    Args:
+        stac_dict: Dictionary containing STAC metadata.
+
+    Returns:
+        Dictionary containing GeoCroissant-formatted metadata.
+    """
     dataset_id = stac_dict.get("id")
     name = sanitize_name(stac_dict.get("title", dataset_id or "UnnamedDataset"))
     version = ensure_semver(stac_dict.get("version", "1.0.0"))

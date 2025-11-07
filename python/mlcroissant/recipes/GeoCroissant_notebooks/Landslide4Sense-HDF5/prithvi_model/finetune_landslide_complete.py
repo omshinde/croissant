@@ -1,55 +1,53 @@
 #!/usr/bin/env python3
-"""
-Complete fine-tuning script for Prithvi-EO-1.0-100M on Landslide4Sense dataset
-"""
+"""Complete fine-tuning script for Prithvi-EO-1.0-100M on Landslide4Sense dataset."""
 
 import json
+import random
+import sys
+from pathlib import Path
+
 import h5py
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms.functional as F
-import numpy as np
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-from sklearn.metrics import f1_score, accuracy_score, precision_recall_fscore_support
 import wandb
-from pathlib import Path
-import sys
-import random
-
-# Import the actual Prithvi model
 from prithvi_mae import PrithviMAE
-import logging
-
-logging.basicConfig(level=logging.INFO)  # once per app
-logger = logging.getLogger(__name__)
+from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 # Add the current directory to path to import prithvi_mae
 sys.path.append(".")
 
 
 class MultispectralTransforms:
-    """Custom transforms for multispectral data (14 channels)"""
+    """Custom transforms for multispectral data (14 channels).
+
+    This class provides transformation utilities specifically designed for working with
+    multispectral image data containing 14 channels, such as that used in the
+    Landslide4Sense dataset.
+    """
 
     @staticmethod
     def random_horizontal_flip(img, p=0.5):
-        """Random horizontal flip for multispectral images"""
+        """Random horizontal flip for multispectral images."""
         if random.random() < p:
             return torch.flip(img, [2])  # Flip width dimension
         return img
 
     @staticmethod
     def random_vertical_flip(img, p=0.5):
-        """Random vertical flip for multispectral images"""
+        """Random vertical flip for multispectral images."""
         if random.random() < p:
             return torch.flip(img, [1])  # Flip height dimension
         return img
 
     @staticmethod
     def random_rotation(img, max_angle=10):
-        """Random rotation for multispectral images"""
+        """Random rotation for multispectral images."""
         angle = random.uniform(-max_angle, max_angle)
         # Apply rotation to each channel
         rotated = torch.zeros_like(img)
@@ -61,7 +59,7 @@ class MultispectralTransforms:
 
     @staticmethod
     def random_brightness_contrast(img, brightness_factor=0.1, contrast_factor=0.1):
-        """Random brightness and contrast adjustment for multispectral data"""
+        """Random brightness and contrast adjustment for multispectral data."""
         # Apply to each channel independently
         adjusted = torch.zeros_like(img)
         for i in range(img.shape[0]):
@@ -82,9 +80,16 @@ class MultispectralTransforms:
 
 
 class LandslideDataset(Dataset):
-    """Landslide4Sense dataset loader using proper metadata paths"""
+    """Landslide4Sense dataset loader using proper metadata paths."""
 
     def __init__(self, metadata_path, split="train", transform=None):
+        """Initialize the Landslide4Sense dataset.
+
+        Args:
+            metadata_path: Path to the metadata JSON file
+            split: Dataset split to use ('train', 'val', or 'test')
+            transform: Optional transforms to apply to the data
+        """
         self.metadata_path = metadata_path
         self.split = split
         self.transform = transform
@@ -101,13 +106,27 @@ class LandslideDataset(Dataset):
         self.annotation_files = self.metadata["geocr:fileListing"]["annotations"][split]
 
         print(
-            "Found {len(self.image_files)} images and {len(self.annotation_files)} annotations for {split} split"
+            "Found {len(self.image_files)} images and {len(self.annotation_files)}"
+            " annotations for {split} split"
         )
 
     def __len__(self):
+        """Get the total number of samples in the dataset.
+
+        Returns:
+            int: Number of samples in the dataset
+        """
         return len(self.image_files)
 
     def __getitem__(self, idx):
+        """Get a sample from the dataset.
+
+        Args:
+            idx: Index of the sample to retrieve
+
+        Returns:
+            dict: Dictionary containing image and label tensors, with any transformations applied
+        """
         # Get file paths from metadata
         image_file = self.repo_path / self.image_files[idx]
         annotation_file = self.repo_path / self.annotation_files[idx]
@@ -166,9 +185,15 @@ class LandslideDataset(Dataset):
 
 
 class PrithviLandslideClassifier(nn.Module):
-    """Prithvi-based classifier for landslide detection using the actual Prithvi model"""
+    """Prithvi-based classifier for landslide detection using the actual Prithvi model."""
 
     def __init__(self, prithvi_model, num_classes=2):
+        """Initialize the Prithvi-based landslide classifier.
+
+        Args:
+            prithvi_model: Pre-trained Prithvi model to use as feature extractor
+            num_classes: Number of classification classes (default: 2 for binary classification)
+        """
         super().__init__()
 
         # Use the actual Prithvi model as feature extractor
@@ -195,6 +220,14 @@ class PrithviLandslideClassifier(nn.Module):
         )
 
     def forward(self, x):
+        """Forward pass of the landslide classifier model.
+
+        Args:
+            x: Input tensor of shape [B, 14, H, W] containing multispectral satellite data
+
+        Returns:
+            torch.Tensor: Classification logits of shape [B, num_classes]
+        """
         # Select the optimal 6 bands for landslide detection
         # x shape: [B, 14, H, W] -> [B, 6, H, W]
         x = x[:, self.band_indices, :, :]
@@ -215,7 +248,15 @@ class PrithviLandslideClassifier(nn.Module):
 
 
 def load_pretrained_prithvi(checkpoint_path, config):
-    """Load pre-trained Prithvi model from checkpoint"""
+    """Load pre-trained Prithvi model from checkpoint.
+
+    Args:
+        checkpoint_path: Path to the Prithvi model checkpoint file
+        config: Dictionary containing model configuration parameters
+
+    Returns:
+        PrithviMAE: Initialized Prithvi model with pre-trained weights
+    """
     print("Loading pre-trained Prithvi model from: {checkpoint_path}")
 
     # Create model with config
@@ -237,7 +278,18 @@ def load_pretrained_prithvi(checkpoint_path, config):
 
 
 def train_model(model, train_loader, val_loader, num_epochs=10, device="cuda"):
-    """Train the model"""
+    """Train the landslide classifier model.
+
+    Args:
+        model: The PrithviLandslideClassifier model to train
+        train_loader: DataLoader for training data
+        val_loader: DataLoader for validation data
+        num_epochs: Number of training epochs (default: 10)
+        device: Device to train on ('cuda' or 'cpu', default: 'cuda')
+
+    Returns:
+        float: Best validation F1 score achieved during training
+    """
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0.01)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
@@ -308,10 +360,12 @@ def train_model(model, train_loader, val_loader, num_epochs=10, device="cuda"):
 
         print("Epoch {epoch+1}/{num_epochs}:")
         print(
-            "  Train Loss: {train_loss/len(train_loader):.4f}, Train F1: {train_f1:.4f}, Train Acc: {train_acc:.4f}"
+            "  Train Loss: {train_loss/len(train_loader):.4f}, Train F1:"
+            " {train_f1:.4f}, Train Acc: {train_acc:.4f}"
         )
         print(
-            f"  Val Loss: {val_loss/len(val_loader):.4f}, Val F1: {val_f1:.4f}, Val Acc: {val_acc:.4f}"
+            f"  Val Loss: {val_loss/len(val_loader):.4f}, Val F1: {val_f1:.4f}, Val"
+            f" Acc: {val_acc:.4f}"
         )
 
         # Save best model
@@ -351,7 +405,14 @@ def train_model(model, train_loader, val_loader, num_epochs=10, device="cuda"):
 
 
 def plot_training_curves(train_losses, val_losses, train_f1s, val_f1s):
-    """Plot training curves"""
+    """Plot training and validation loss and F1 score curves.
+
+    Args:
+        train_losses: List of training loss values per epoch
+        val_losses: List of validation loss values per epoch
+        train_f1s: List of training F1 scores per epoch
+        val_f1s: List of validation F1 scores per epoch
+    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
 
     # Loss curves
@@ -378,7 +439,16 @@ def plot_training_curves(train_losses, val_losses, train_f1s, val_f1s):
 
 
 def evaluate_model(model, test_loader, device):
-    """Evaluate the model on test set"""
+    """Evaluate the model on test set.
+
+    Args:
+        model: The trained PrithviLandslideClassifier model to evaluate
+        test_loader: DataLoader for test data
+        device: Device to evaluate on ('cuda' or 'cpu')
+
+    Returns:
+        dict: Dictionary containing test metrics (accuracy, F1 score, precision, recall)
+    """
     model.eval()
     test_preds = []
     test_labels = []
@@ -419,7 +489,15 @@ def evaluate_model(model, test_loader, device):
 
 
 def main():
-    """Main fine-tuning function"""
+    """Execute the complete fine-tuning process.
+
+    This function orchestrates the complete fine-tuning process:
+    1. Sets up wandb logging and device configuration
+    2. Creates datasets and data loaders with transforms
+    3. Initializes the Prithvi model and landslide classifier
+    4. Trains the model and evaluates on validation data
+    5. Evaluates best model on test set and saves results
+    """
     print("Starting Prithvi-EO-1.0-100M fine-tuning on Landslide4Sense dataset")
     print("=" * 70)
 
@@ -442,13 +520,20 @@ def main():
             name="prithvi-eo-100m-landslide4sense",
         )
     except Exception as e:
-        logger.exception("work failed: %s", e)
-        print("Wandb not available, continuing without logging")
+        print(f"Wandb not available ({str(e)}), continuing without logging")
         wandb.run = None
 
     # Data transforms for multispectral data
     def get_multispectral_transforms():
-        """Get transforms for multispectral data"""
+        """Get transforms for multispectral data.
+
+        Returns:
+            callable: Transform function that applies the following augmentations:
+                - Random horizontal flip (p=0.5)
+                - Random vertical flip (p=0.5)
+                - Random rotation (±10 degrees)
+                - Random brightness/contrast adjustments
+        """
 
         def transform(img):
             # Apply custom multispectral transforms
@@ -519,7 +604,8 @@ def main():
 
     print("Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(
-        "Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}"
+        "Trainable parameters: {sum(p.numel() for p in model.parameters() if"
+        " p.requires_grad):,}"
     )
 
     # Train the model
