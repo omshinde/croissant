@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
-"""Complete NASA UMM-G to GeoCroissant Converter.
+"""
+Complete NASA UMM-G to GeoCroissant Converter
 
 This script demonstrates how to convert NASA UMM-G JSON to GeoCroissant format
 with ALL fields mapped, achieving 100% data preservation.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Any, Optional
 
 
 class CompleteNASAUMMGToGeoCroissantConverter:
     """Complete converter that maps ALL NASA UMM-G fields to GeoCroissant."""
 
     def __init__(self):
-        """Initialize the NASA UMM-G to GeoCroissant converter.
-
-        Sets up the initial conversion context and JSON-LD structure.
-        """
         self.setup_context()
 
     def setup_context(self):
-        """Set up the JSON-LD context for GeoCroissant following Croissant 1.0 specification."""
+        """Setup the JSON-LD context for GeoCroissant following Croissant 1.0 specification."""
         self.context = {
             "@language": "en",
             "@vocab": "https://schema.org/",
@@ -72,9 +69,7 @@ class CompleteNASAUMMGToGeoCroissantConverter:
             "@type": "sc:Dataset",
             "name": "HLS_Sentinel2_Satellite_Imagery_Dataset",
             "alternateName": ["NASA_HLS_Sentinel2", "HLS-Sentinel2-Imagery"],
-            "description": (
-                "Complete HLS Sentinel-2 satellite imagery dataset with all metadata preserved from NASA Earthdata"
-            ),
+            "description": "Complete HLS Sentinel-2 satellite imagery dataset with all metadata preserved from NASA Earthdata",
             "conformsTo": "http://mlcommons.org/croissant/1.0",
             "version": "2.0",
             "creator": {
@@ -197,14 +192,12 @@ class CompleteNASAUMMGToGeoCroissantConverter:
 
         return {
             "hls_sentinel2_granule/granule_id": umm.get("GranuleUR", ""),
-            "hls_sentinel2_granule/cloud_coverage": (
-                float(cloud_coverage) if cloud_coverage else 0.0
-            ),
+            "hls_sentinel2_granule/cloud_coverage": float(cloud_coverage)
+            if cloud_coverage
+            else 0.0,
             "hls_sentinel2_granule/temporal_extent": temporal_extent,
             "hls_sentinel2_granule/spatial_coverage": spatial_coverage,
-            "hls_sentinel2_granule/spectral_bands": (
-                "B01,B02,B03,B04,B05,B06,B07,B08,B8A,B09,B10,B11,B12"
-            ),
+            "hls_sentinel2_granule/spectral_bands": "B01,B02,B03,B04,B05,B06,B07,B08,B8A,B09,B10,B11,B12",
         }
 
     def add_spatial_information(self, record: Dict[str, Any], umm: Dict[str, Any]):
@@ -283,8 +276,8 @@ class CompleteNASAUMMGToGeoCroissantConverter:
             "geocr:atmosphericCorrection": self.find_additional_attribute(
                 additional_attrs, "ACCODE"
             ),
-            "geocr:acquisitionCondition": (
-                umm.get("DataGranule", {}).get("DayNightFlag")
+            "geocr:acquisitionCondition": umm.get("DataGranule", {}).get(
+                "DayNightFlag"
             ),
             "geocr:rasterData": {
                 "geocr:format": "GeoTIFF",
@@ -715,9 +708,8 @@ class CompleteNASAUMMGToGeoCroissantConverter:
                         "@type": "cr:FileObject",
                         "@id": "other_{len(distributions)}",
                         "name": url_type or "Data Access",
-                        "description": (
-                            url_info["description"] or "Access method: {url_type}"
-                        ),
+                        "description": url_info["description"]
+                        or "Access method: {url_type}",
                         "contentUrl": url,
                         "encodingFormat": url_info["encoding_format"],
                         "md5": "d41d8cd98f00b204e9800998ecf8427e",
@@ -731,9 +723,7 @@ class CompleteNASAUMMGToGeoCroissantConverter:
                     "@type": "cr:FileSet",
                     "@id": "tiff_files",
                     "name": "TIFF Files",
-                    "description": (
-                        "Collection of {len(unique_files)} TIFF files containing satellite imagery bands"
-                    ),
+                    "description": "Collection of {len(unique_files)} TIFF files containing satellite imagery bands",
                     "encodingFormat": "image/tif",
                     "includes": "**/*.ti",
                 }
@@ -1209,7 +1199,7 @@ class CompleteNASAUMMGToGeoCroissantConverter:
     def convert_to_complete_geocroissant(
         self, ummg_data: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Convert UMM-G data to GeoCroissant format."""
+        """Main conversion method - clean and organized."""
         # Extract main sections
         meta = ummg_data.get("meta", {})
         umm = ummg_data.get("umm", {})
@@ -1219,7 +1209,8 @@ class CompleteNASAUMMGToGeoCroissantConverter:
 
 
 def main():
-    """Demonstrate complete conversion following Croissant 1.0."""
+    """Main function to demonstrate complete conversion following Croissant 1.0."""
+
     # Load the NASA UMM-G JSON
     with open("nasa_ummg_h.json", "r") as f:
         ummg_data = json.load(f)
