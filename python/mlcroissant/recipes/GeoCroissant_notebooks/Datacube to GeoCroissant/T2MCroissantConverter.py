@@ -1,28 +1,21 @@
-"""NASA POWER T2M (2-meter air temperature) Data Converter Module.
-
-This module provides functionality for converting NASA POWER 2-meter air temperature
-data to GeoCroissant format. It specializes in handling T2M measurements and their
-associated metadata, making the data accessible within the GeoCroissant framework.
-"""
-
-import hashlib
 import json
-from typing import Any, Dict
-
 import xarray as xr
+import hashlib
+from typing import Dict, Any
 
 
 class T2MCroissantConverter:
-    """NASA POWER T2M data for the year 2020 to GeoCroissant format."""
+    """NASA POWER T2M data for the year 2020 to GeoCroissant format"""
 
     def __init__(
         self,
         zarr_url: str = "s3://nasa-power/merra2/temporal/power_merra2_monthly_temporal_utc.zarr/",
     ):
-        """Initialize the converter with the Zarr URL.
+        """
+        Initialize the converter with the Zarr URL
 
         Args:
-            zarr_url: URL to the NASA POWER Zarr dataset.
+            zarr_url: URL to the NASA POWER Zarr dataset
         """
         self.zarr_url = zarr_url
         self.ds_full = None
@@ -31,7 +24,7 @@ class T2MCroissantConverter:
         self.year = 2020
 
     def load_dataset(self) -> bool:
-        """Load the full dataset from S3 and subset T2M for 2020."""
+        """Load the full dataset from S3 and subset T2M for 2020"""
         try:
             print(f"Loading NASA POWER dataset from {self.zarr_url}...")
             self.ds_full = xr.open_zarr(self.zarr_url, storage_options={"anon": True})
@@ -51,19 +44,20 @@ class T2MCroissantConverter:
             return False
 
     def generate_checksum(self, content: str) -> str:
-        """Generate MD5 checksum for content."""
+        """Generate MD5 checksum for content"""
         return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def create_croissant_metadata(
         self, output_file: str = "T2M_2020_croissant.json"
     ) -> Dict[str, Any]:
-        """Create GeoCroissant metadata for the T2M 2020 data.
+        """
+        Create GeoCroissant metadata for the T2M 2020 data
 
         Args:
-            output_file: Output file path.
+            output_file: Output file path
 
         Returns:
-            dict: GeoCroissant metadata.
+            dict: GeoCroissant metadata
         """
         if self.ds_2020 is None:
             print("Error: No 2020 data available. Call load_dataset() first.")
@@ -141,9 +135,7 @@ class T2MCroissantConverter:
             "@type": "sc:Dataset",
             "name": "NASA-POWER-T2M-Monthly-Time-Series-2020",
             "alternateName": ["nasa-power-t2m-2020", "POWER-T2M-2020"],
-            "description": (
-                "Monthly time series of Temperature at 2 Meters (T2M) for 2020 from NASA POWER dataset. This dataset provides global temperature data at 0.5° latitude and 0.625° longitude resolution with monthly temporal resolution."
-            ),
+            "description": "Monthly time series of Temperature at 2 Meters (T2M) for 2020 from NASA POWER dataset. This dataset provides global temperature data at 0.5° latitude and 0.625° longitude resolution with monthly temporal resolution.",
             "conformsTo": "http://mlcommons.org/croissant/1.0",
             "version": "1.0.0",
             "url": "https://power.larc.nasa.gov",
@@ -165,9 +157,7 @@ class T2MCroissantConverter:
                 "Meteorology",
                 "Climate Data",
             ],
-            "citeAs": (
-                "NASA POWER Project. Prediction Of Worldwide Energy Resource (POWER) Project. NASA Langley Research Center."
-            ),
+            "citeAs": "NASA POWER Project. Prediction Of Worldwide Energy Resource (POWER) Project. NASA Langley Research Center.",
             "geocr:BoundingBox": [
                 self.ds_full.attrs.get("geospatial_lon_min", -180.0),
                 self.ds_full.attrs.get("geospatial_lat_min", -90.0),
@@ -191,9 +181,7 @@ class T2MCroissantConverter:
                     "@type": "cr:FileObject",
                     "@id": "zarr-store-t2m-2020",
                     "name": "zarr-store-t2m-2020",
-                    "description": (
-                        "Zarr datacube for NASA POWER T2M data for the year 2020"
-                    ),
+                    "description": "Zarr datacube for NASA POWER T2M data for the year 2020",
                     "contentUrl": self.zarr_url,
                     "encodingFormat": "application/x-zarr",
                     "md5": md5_hash,
@@ -227,27 +215,25 @@ class T2MCroissantConverter:
                     "extract": {"jsonPath": "$.{coord_name}"},
                 },
                 "geocr:dataShape": list(coord.shape),
-                "geocr:validRange": (
-                    {
-                        "min": (
-                            -90.0
-                            if coord_name == "lat"
-                            else -180.0 if coord_name == "lon" else None
-                        ),
-                        "max": (
-                            90.0
-                            if coord_name == "lat"
-                            else 180.0 if coord_name == "lon" else None
-                        ),
-                    }
-                    if coord_name in ["lat", "lon"]
-                    else None
-                ),
-                "geocr:units": (
-                    "degrees_north"
+                "geocr:validRange": {
+                    "min": -90.0
                     if coord_name == "lat"
-                    else "degrees_east" if coord_name == "lon" else None
-                ),
+                    else -180.0
+                    if coord_name == "lon"
+                    else None,
+                    "max": 90.0
+                    if coord_name == "lat"
+                    else 180.0
+                    if coord_name == "lon"
+                    else None,
+                }
+                if coord_name in ["lat", "lon"]
+                else None,
+                "geocr:units": "degrees_north"
+                if coord_name == "lat"
+                else "degrees_east"
+                if coord_name == "lon"
+                else None,
             }
             # Remove None values
             coord_field = {k: v for k, v in coord_field.items() if v is not None}
@@ -286,13 +272,14 @@ class T2MCroissantConverter:
         return croissant
 
     def convert(self, output_file: str = "T2M_2020_croissant.json") -> Dict[str, Any]:
-        """Complete conversion pipeline for T2M 2020.
+        """
+        Complete conversion pipeline for T2M 2020
 
         Args:
-            output_file: Output file path.
+            output_file: Output file path
 
         Returns:
-            dict: GeoCroissant metadata.
+            dict: GeoCroissant metadata
         """
         print(f"Starting conversion for T2M {self.year}...")
         if not self.load_dataset():
