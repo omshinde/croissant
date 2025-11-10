@@ -34,7 +34,6 @@ def test_convert_to_rdf_mock_data():
     with tempfile.NamedTemporaryFile(
         mode="w+b", suffix=".ttl", delete_on_close=False
     ) as fp:
-
         harvester = HuggingfaceHarvester(fname=fp.name)
         file_ttl = harvester.convert_to_rdf(data)
         # assert there is a file named test_output.ttl in the data directory

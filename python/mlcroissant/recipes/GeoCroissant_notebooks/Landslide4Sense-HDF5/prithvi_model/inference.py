@@ -1,17 +1,20 @@
+"""Inference Module for Prithvi MAE Model.
+
+This module provides inference functionality for the Prithvi MAE (Masked Autoencoder)
+model, specifically for landslide detection tasks. It handles model loading,
+data preprocessing, and inference on geospatial data using PyTorch.
+"""
+
 import argparse
 import os
 from typing import List, Union
+
 import numpy as np
 import rasterio
 import torch
 import yaml
-
-from prithvi_mae import PrithviMAE
 from einops import rearrange
-import logging
-
-logging.basicConfig(level=logging.INFO)  # once per app
-logger = logging.getLogger(__name__)
+from prithvi_mae import PrithviMAE
 
 NO_DATA = -9999
 NO_DATA_FLOAT = 0.0001
@@ -20,9 +23,11 @@ PERCENTILE = 99.9
 
 
 def process_channel_group(orig_img, new_img, channels, mean, std):
-    """Process *orig_img* and *new_img* for RGB visualization. Each band is rescaled back to the
-        original range using *data_mean* and *data_std* and then lowest and highest percentiles are
-        removed to enhance contrast. Data is rescaled to (0, 1) range and stacked channels_first.
+    """Process *orig_img* and *new_img* for RGB visualization.
+
+    Each band is rescaled back to the original range using *data_mean* and *data_std*
+    and then lowest and highest percentiles are removed to enhance contrast. Data is
+    rescaled to (0, 1) range and stacked channels_first.
 
     Args:
         orig_img: torch.Tensor representing original image (reference) with shape = (bands, H, W).
@@ -35,7 +40,6 @@ def process_channel_group(orig_img, new_img, channels, mean, std):
         torch.Tensor with shape (num_channels, height, width) for original image
         torch.Tensor with shape (num_channels, height, width) for the other image
     """
-
     mean = torch.tensor(np.asarray(mean)[:, None, None])  # C H W
     std = torch.tensor(np.asarray(std)[:, None, None])
     orig_img = orig_img[channels, ...]
@@ -67,18 +71,17 @@ def read_geotiff(file_path: str):
         file_path: path to image file.
 
     Returns:
-        np.ndarray with shape (bands, height, width)
-        meta info dict
+        np.ndarray with shape (bands, height, width).
+        Meta info dict.
     """
-
     with rasterio.open(file_path) as src:
         img = src.read()
         meta = src.meta
         try:
             coords = src.lnglat()
-        except Exception as e:
-            logger.exception("work failed: %s", e)
-            # Cannot read coords
+        except rasterio.errors.CRSError as e:
+            # Cannot read coords due to missing CRS
+            print(f"Could not read coordinates: {str(e)}")
             coords = None
 
     return img, meta, coords
@@ -88,11 +91,10 @@ def save_geotiff(image, output_path: str, meta: dict):
     """Save multi-band image in Geotiff file.
 
     Args:
-        image: np.ndarray with shape (bands, height, width)
-        output_path: path where to save the image
+        image: np.ndarray with shape (bands, height, width).
+        output_path: path where to save the image.
         meta: dict with meta info.
     """
-
     with rasterio.open(output_path, "w", **meta) as dest:
         for i in range(image.shape[0]):
             dest.write(image[i, :, :], i + 1)
@@ -116,15 +118,14 @@ def load_example(
     """Build an input example by loading images in *file_paths*.
 
     Args:
-        file_paths: list of file paths .
+        file_paths: list of file paths.
         mean: list containing mean values for each band in the images in *file_paths*.
         std: list containing std values for each band in the images in *file_paths*.
 
     Returns:
-        np.array containing created example
-        list of meta info for each image in *file_paths*
+        np.array containing created example.
+        List of meta info for each image in *file_paths*.
     """
-
     imgs = []
     metas = []
 
@@ -164,7 +165,6 @@ def run_model(
     Returns:
         3 torch.Tensor with shape (B, C, T, H, W).
     """
-
     with torch.no_grad():
         x = input_data.to(device)
 
@@ -191,7 +191,7 @@ def run_model(
 def save_rgb_imgs(
     input_img, rec_img, mask_img, channels, mean, std, output_dir, meta_data
 ):
-    """Wrapper function to save Geotiff images (original, reconstructed, masked) per timestamp.
+    """Save Geotiff images (original, reconstructed, masked) per timestamp.
 
     Args:
         input_img: input torch.Tensor with shape (C, T, H, W).
@@ -203,7 +203,6 @@ def save_rgb_imgs(
         output_dir: directory where to save outputs.
         meta_data: list of dicts with geotiff meta info.
     """
-
     for t in range(input_img.shape[1]):
         rgb_orig, rgb_pred = process_channel_group(
             orig_img=input_img[:, t, :, :],
@@ -237,7 +236,7 @@ def save_rgb_imgs(
 
 
 def save_imgs(rec_img, mask_img, mean, std, output_dir, meta_data):
-    """Wrapper function to save Geotiff images (reconstructed, mask) per timestamp.
+    """Save Geotiff images (reconstructed, mask) per timestamp.
 
     Args:
         rec_img: reconstructed torch.Tensor with shape (C, T, H, W).
@@ -247,7 +246,6 @@ def save_imgs(rec_img, mask_img, mean, std, output_dir, meta_data):
         output_dir: directory where to save outputs.
         meta_data: list of dicts with geotiff meta info.
     """
-
     mean = torch.tensor(np.asarray(mean)[:, None, None])  # C H W
     std = torch.tensor(np.asarray(std)[:, None, None])
 
@@ -281,6 +279,17 @@ def main(
     mask_ratio: float = None,
     input_indices: list[int] = None,
 ):
+    """Run inference with a pretrained Prithvi MAE model.
+
+    Args:
+        data_files: list of file paths representing time steps.
+        config_path: path to YAML/JSON config with model parameters.
+        checkpoint: path to model checkpoint file.
+        output_dir: directory to save outputs.
+        rgb_outputs: whether to generate RGB-only outputs.
+        mask_ratio: optional mask ratio override.
+        input_indices: optional list of input channel indices to select.
+    """
     os.makedirs(output_dir, exist_ok=True)
 
     # Get parameters --------
@@ -297,11 +306,13 @@ def main(
     mask_ratio = mask_ratio or config["mask_ratio"]
 
     print(
-        "\nTreating {len(data_files)} files as {len(data_files)} time steps from the same location\n"
+        "\nTreating {len(data_files)} files as {len(data_files)} time steps from the"
+        " same location\n"
     )
     if len(data_files) != 3:
         print(
-            "The original model was trained for 3 time steps (expecting 3 files). \nResults with different numbers of timesteps may vary"
+            "The original model was trained for 3 time steps (expecting 3 files)."
+            " \nResults with different numbers of timesteps may vary"
         )
 
     if torch.cuda.is_available():
@@ -472,21 +483,28 @@ if __name__ == "__main__":
         "--mask_ratio",
         default=0.75,
         type=float,
-        help="Masking ratio (percentage of removed patches). "
-        "If None (default) use same value used for pretraining.",
+        help=(
+            "Masking ratio (percentage of removed patches). "
+            "If None (default) use same value used for pretraining."
+        ),
     )
     parser.add_argument(
         "--input_indices",
         default=None,
         type=int,
         nargs="+",
-        help="0-based indices of channels to be selected from the input. By default takes all.",
+        help=(
+            "0-based indices of channels to be selected from the input. By default"
+            " takes all."
+        ),
     )
     parser.add_argument(
         "--rgb_outputs",
         action="store_true",
-        help="If present, output files will only contain RGB channels. "
-        "Otherwise, all bands will be saved.",
+        help=(
+            "If present, output files will only contain RGB channels. "
+            "Otherwise, all bands will be saved."
+        ),
     )
     args = parser.parse_args()
 

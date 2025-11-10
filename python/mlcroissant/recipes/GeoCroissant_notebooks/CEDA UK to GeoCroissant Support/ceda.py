@@ -1,10 +1,18 @@
+"""Module for handling CEDA (Centre for Environmental Data Analysis) data conversion and processing.
+
+This module provides utilities for working with CEDA data, including functions for
+determining asset types, processing CEDA-specific data formats, and managing CEDA data
+resources in the context of the GeoCroissant framework.
+"""
+
 import json
 from urllib.parse import urlparse
+
 from ceda_datapoint import DataPointClient
 
 
 def get_asset_type(asset):
-    """Determine asset type from asset properties or file extension"""
+    """Determine asset type from asset properties or file extension."""
     # Check if asset has type or media_type attributes
     if hasattr(asset, "type"):
         return asset.type
@@ -40,7 +48,7 @@ def get_asset_type(asset):
 
 
 def stac_to_geocroissant(stac_item, file_hash=None, filename=None):
-    """Convert a CEDA STAC item to valid GeoCroissant format, optionally adding hash and filename"""
+    """Convert a CEDA STAC item to valid GeoCroissant format, optionally adding hash and filename."""
     if hasattr(stac_item, "stac_attributes"):
         # Get basic STAC metadata
         stac_attrs = stac_item.stac_attributes
@@ -111,7 +119,13 @@ def stac_to_geocroissant(stac_item, file_hash=None, filename=None):
             "{properties.get('cmip6:institution_id', 'Unknown')}-{variable_id}",
             "{properties.get('cmip6:experiment_id', 'Unknown')}-{variable_id}",
         ],
-        "description": "CMIP6 dataset for {variable_name} ({variable_id}) from {properties.get('cmip6:institution_id', 'Unknown')} model. This dataset contains {variable_name} data for the {properties.get('cmip6:experiment_title', 'Unknown experiment')} scenario.",
+        "description": (
+            "CMIP6 dataset for {variable_name} ({variable_id}) from"
+            " {properties.get('cmip6:institution_id', 'Unknown')} model. This dataset"
+            " contains {variable_name} data for the"
+            " {properties.get('cmip6:experiment_title', 'Unknown experiment')}"
+            " scenario."
+        ),
         "conformsTo": "http://mlcommons.org/croissant/1.0",
         "version": "1.0.0",
         "creator": {
@@ -218,7 +232,10 @@ def stac_to_geocroissant(stac_item, file_hash=None, filename=None):
                         "name": "temporal_coverage",
                         "description": "Temporal coverage",
                         "dataType": "sc:Text",
-                        "data": "{properties.get('start_datetime', '')}/{properties.get('end_datetime', '')}",
+                        "data": (
+                            "{properties.get('start_datetime',"
+                            " '')}/{properties.get('end_datetime', '')}"
+                        ),
                         "source": {"fileSet": {"@id": "data_files"}},
                     },
                 ],

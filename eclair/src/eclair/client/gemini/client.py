@@ -200,9 +200,7 @@ Let me analyze these results and provide recommendations."""
                             temperature=temp
                         ),
                     )
-                    return (
-                        f"⚠️ Dataset server unavailable. General guidance:\n\n{response}"
-                    )
+                    return f"⚠️ Dataset server unavailable. General guidance:\n\n{response}"
 
     def _extract_search_terms(self, prompt: str) -> str:
         """Extract relevant search terms from user prompt."""
